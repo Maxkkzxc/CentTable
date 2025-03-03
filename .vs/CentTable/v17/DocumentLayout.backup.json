@@ -3,12 +3,116 @@
   "WorkspaceRootPath": "F:\\Projects\\CentTable\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\centtable.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}",
-      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\centtable.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}"
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\clientapp\\src\\app.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\clientapp\\src\\app.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\clientapp\\src\\components\\protectedroute.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\clientapp\\src\\components\\protectedroute.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\clientapp\\src\\pages\\adminpanel.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\clientapp\\src\\pages\\adminpanel.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\clientapp\\package-lock.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\clientapp\\package-lock.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\clientapp\\src\\pages\\dashboard.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\clientapp\\src\\pages\\dashboard.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\clientapp\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\clientapp\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\clientapp\\src\\pages\\login.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\clientapp\\src\\pages\\login.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\clientapp\\src\\services\\authservice.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\clientapp\\src\\services\\authservice.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\clientapp\\public\\logo512.png||{177559E0-D141-11D0-92DF-00A0C9138C45}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\clientapp\\public\\logo512.png||{177559E0-D141-11D0-92DF-00A0C9138C45}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\controllers\\accountcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\controllers\\accountcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|F:\\Projects\\CentTable\\CentTable\\ClientApp\\clientapp\\README.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CentTable\\ClientApp\\clientapp\\README.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\data\\loginviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\data\\loginviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\data\\registerviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\data\\registerviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\data\\roleinitializer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\data\\roleinitializer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\models\\datagridpermission.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\models\\datagridpermission.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\models\\cell.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\models\\cell.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\models\\row.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\models\\row.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\models\\column.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\models\\column.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\models\\datagrid.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\models\\datagrid.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\models\\applicationuser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\models\\applicationuser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\enums\\role.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\enums\\role.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\enums\\columntype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\enums\\columntype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\enums\\permissiontype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\enums\\permissiontype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\centtable.csproj||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\centtable.csproj||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|f:\\projects\\centtable\\centtable\\centtable.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}|CentTable\\CentTable.csproj|solutionrelative:centtable\\centtable.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,7 +122,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 8,
           "Children": [
             {
               "$type": "Bookmark",
@@ -26,28 +130,362 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "CentTable.http",
-              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\CentTable.http",
-              "RelativeDocumentMoniker": "CentTable\\CentTable.http",
-              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\CentTable.http",
-              "RelativeToolTip": "CentTable\\CentTable.http",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003502|",
-              "WhenOpened": "2025-02-18T16:07:56.288Z",
+              "DocumentIndex": 1,
+              "Title": "ProtectedRoute.js",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\components\\ProtectedRoute.js",
+              "RelativeDocumentMoniker": "CentTable\\clientapp\\src\\components\\ProtectedRoute.js",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\components\\ProtectedRoute.js",
+              "RelativeToolTip": "CentTable\\clientapp\\src\\components\\ProtectedRoute.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-03-03T20:23:04.164Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
+              "Title": "package-lock.json",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\clientapp\\package-lock.json",
+              "RelativeDocumentMoniker": "CentTable\\clientapp\\package-lock.json",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\clientapp\\package-lock.json",
+              "RelativeToolTip": "CentTable\\clientapp\\package-lock.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAANAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-03-03T19:51:52.474Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "package.json",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\clientapp\\package.json",
+              "RelativeDocumentMoniker": "CentTable\\clientapp\\package.json",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\clientapp\\package.json",
+              "RelativeToolTip": "CentTable\\clientapp\\package.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-03-03T19:38:51.325Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "authService.js",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\services\\authService.js",
+              "RelativeDocumentMoniker": "CentTable\\clientapp\\src\\services\\authService.js",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\services\\authService.js",
+              "RelativeToolTip": "CentTable\\clientapp\\src\\services\\authService.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-03-03T19:31:38.984Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "Dashboard.js",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\pages\\Dashboard.js",
+              "RelativeDocumentMoniker": "CentTable\\clientapp\\src\\pages\\Dashboard.js",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\pages\\Dashboard.js",
+              "RelativeToolTip": "CentTable\\clientapp\\src\\pages\\Dashboard.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAAAuAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-03-03T19:27:48.174Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "AdminPanel.js",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\pages\\AdminPanel.js",
+              "RelativeDocumentMoniker": "CentTable\\clientapp\\src\\pages\\AdminPanel.js",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\pages\\AdminPanel.js",
+              "RelativeToolTip": "CentTable\\clientapp\\src\\pages\\AdminPanel.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAAAuAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-03-03T19:27:21.96Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "Login.js",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\pages\\Login.js",
+              "RelativeDocumentMoniker": "CentTable\\clientapp\\src\\pages\\Login.js",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\pages\\Login.js",
+              "RelativeToolTip": "CentTable\\clientapp\\src\\pages\\Login.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAAA5AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-03-03T19:27:06.284Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "App.js",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\App.js",
+              "RelativeDocumentMoniker": "CentTable\\clientapp\\src\\App.js",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\clientapp\\src\\App.js",
+              "RelativeToolTip": "CentTable\\clientapp\\src\\App.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-03-03T19:22:30.808Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "logo512.png - PNG [512x512, 32-\u0440\u0430\u0437\u0440\u044F\u0434\u043D\u043E\u0435, PNG]",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\clientapp\\public\\logo512.png",
+              "RelativeDocumentMoniker": "CentTable\\clientapp\\public\\logo512.png",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\clientapp\\public\\logo512.png - PNG [512x512, 32-\u0440\u0430\u0437\u0440\u044F\u0434\u043D\u043E\u0435, PNG]",
+              "RelativeToolTip": "CentTable\\clientapp\\public\\logo512.png - PNG [512x512, 32-\u0440\u0430\u0437\u0440\u044F\u0434\u043D\u043E\u0435, PNG]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001533|",
+              "WhenOpened": "2025-03-03T18:58:25.476Z",
+              "EditorCaption": " - PNG [512x512, 32-\u0440\u0430\u0437\u0440\u044F\u0434\u043D\u043E\u0435, PNG]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "README.md",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\clientapp\\clientapp\\README.md",
+              "RelativeDocumentMoniker": "CentTable\\clientapp\\clientapp\\README.md",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\clientapp\\clientapp\\README.md",
+              "RelativeToolTip": "CentTable\\clientapp\\clientapp\\README.md",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2025-03-03T18:50:17.427Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 16,
+              "Title": "RoleInitializer.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Data\\RoleInitializer.cs",
+              "RelativeDocumentMoniker": "CentTable\\Data\\RoleInitializer.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Data\\RoleInitializer.cs",
+              "RelativeToolTip": "CentTable\\Data\\RoleInitializer.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T18:17:11.224Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "LoginViewModel.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Data\\LoginViewModel.cs",
+              "RelativeDocumentMoniker": "CentTable\\Data\\LoginViewModel.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Data\\LoginViewModel.cs",
+              "RelativeToolTip": "CentTable\\Data\\LoginViewModel.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T18:16:38.417Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
               "Title": "Program.cs",
               "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Program.cs",
               "RelativeDocumentMoniker": "CentTable\\Program.cs",
               "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Program.cs",
               "RelativeToolTip": "CentTable\\Program.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAADMAAAApAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-02-18T16:07:44.275Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "RegisterViewModel.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Data\\RegisterViewModel.cs",
+              "RelativeDocumentMoniker": "CentTable\\Data\\RegisterViewModel.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Data\\RegisterViewModel.cs",
+              "RelativeToolTip": "CentTable\\Data\\RegisterViewModel.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABsAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T18:16:15.115Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "AccountController.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Controllers\\AccountController.cs",
+              "RelativeDocumentMoniker": "CentTable\\Controllers\\AccountController.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Controllers\\AccountController.cs",
+              "RelativeToolTip": "CentTable\\Controllers\\AccountController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T18:15:36.939Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 22,
+              "Title": "ApplicationUser.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Models\\ApplicationUser.cs",
+              "RelativeDocumentMoniker": "CentTable\\Models\\ApplicationUser.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Models\\ApplicationUser.cs",
+              "RelativeToolTip": "CentTable\\Models\\ApplicationUser.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T17:31:14.532Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "AppDbContext.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Data\\AppDbContext.cs",
+              "RelativeDocumentMoniker": "CentTable\\Data\\AppDbContext.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Data\\AppDbContext.cs",
+              "RelativeToolTip": "CentTable\\Data\\AppDbContext.cs",
+              "ViewState": "AgIAABQAAAAAAAAAAAA1wDgAAAAbAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T16:38:14.399Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "DataGridPermission.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Models\\DataGridPermission.cs",
+              "RelativeDocumentMoniker": "CentTable\\Models\\DataGridPermission.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Models\\DataGridPermission.cs",
+              "RelativeToolTip": "CentTable\\Models\\DataGridPermission.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAqwA8AAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T16:37:43.111Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\appsettings.json",
+              "RelativeDocumentMoniker": "CentTable\\appsettings.json",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\appsettings.json",
+              "RelativeToolTip": "CentTable\\appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAaAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-02-27T11:48:34.27Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 23,
+              "Title": "Role.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Enums\\Role.cs",
+              "RelativeDocumentMoniker": "CentTable\\Enums\\Role.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Enums\\Role.cs",
+              "RelativeToolTip": "CentTable\\Enums\\Role.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T17:25:41.556Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 25,
+              "Title": "PermissionType.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Enums\\PermissionType.cs",
+              "RelativeDocumentMoniker": "CentTable\\Enums\\PermissionType.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Enums\\PermissionType.cs",
+              "RelativeToolTip": "CentTable\\Enums\\PermissionType.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T16:33:27.833Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 18,
+              "Title": "Cell.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Models\\Cell.cs",
+              "RelativeDocumentMoniker": "CentTable\\Models\\Cell.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Models\\Cell.cs",
+              "RelativeToolTip": "CentTable\\Models\\Cell.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T16:30:10.348Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 19,
+              "Title": "Row.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Models\\Row.cs",
+              "RelativeDocumentMoniker": "CentTable\\Models\\Row.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Models\\Row.cs",
+              "RelativeToolTip": "CentTable\\Models\\Row.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T16:29:49.877Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 24,
+              "Title": "ColumnType.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Enums\\ColumnType.cs",
+              "RelativeDocumentMoniker": "CentTable\\Enums\\ColumnType.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Enums\\ColumnType.cs",
+              "RelativeToolTip": "CentTable\\Enums\\ColumnType.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAPAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T16:29:20.745Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 20,
+              "Title": "Column.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Models\\Column.cs",
+              "RelativeDocumentMoniker": "CentTable\\Models\\Column.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Models\\Column.cs",
+              "RelativeToolTip": "CentTable\\Models\\Column.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T16:28:33.299Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 21,
+              "Title": "DataGrid.cs",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\Models\\DataGrid.cs",
+              "RelativeDocumentMoniker": "CentTable\\Models\\DataGrid.cs",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\Models\\DataGrid.cs",
+              "RelativeToolTip": "CentTable\\Models\\DataGrid.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-03T16:26:26.698Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 27,
+              "Title": "CentTable.csproj",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\CentTable.csproj",
+              "RelativeDocumentMoniker": "CentTable\\CentTable.csproj",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\CentTable.csproj",
+              "RelativeToolTip": "CentTable\\CentTable.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2025-02-28T15:10:54.2Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 26,
+              "Title": "CentTable",
+              "DocumentMoniker": "F:\\Projects\\CentTable\\CentTable\\CentTable.csproj",
+              "RelativeDocumentMoniker": "CentTable\\CentTable.csproj",
+              "ToolTip": "F:\\Projects\\CentTable\\CentTable\\CentTable.csproj",
+              "RelativeToolTip": "CentTable\\CentTable.csproj",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2025-02-28T15:15:13.392Z",
               "EditorCaption": ""
             }
           ]
