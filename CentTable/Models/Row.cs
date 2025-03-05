@@ -7,5 +7,4 @@
         public DataGrid DataGrid { get; set; }
         public ICollection<Cell> Cells { get; set; }
     }
-
 }

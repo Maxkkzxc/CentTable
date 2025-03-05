@@ -1,5 +1,4 @@
-﻿
-namespace CentTable.Models
+﻿namespace CentTable.Models
 {
     public class DataGrid
     {

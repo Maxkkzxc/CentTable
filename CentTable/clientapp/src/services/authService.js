@@ -1,24 +1,13 @@
-﻿import axios from 'axios';
+﻿import api from './axiosInstance';
 
-const API_URL = 'http://localhost:5000/api/auth/';  
+export const register = async (userData) => {
+    const response = await api.post('account/register', userData);
+    localStorage.setItem('token', response.data.token);
+    return response.data;
+};
 
 export const login = async (username, password) => {
-    try {
-        const response = await fetch('https://your-api-url.com/auth/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ username, password }),
-        });
-
-        if (!response.ok) {
-            throw new Error('Ошибка аутентификации');
-        }
-
-        const data = await response.json();
-        return data;  
-    } catch (error) {
-        throw new Error('Не удалось выполнить запрос');
-    }
+    const response = await api.post('account/login', { username, password });
+    localStorage.setItem('token', response.data.token);
+    return response.data;
 };

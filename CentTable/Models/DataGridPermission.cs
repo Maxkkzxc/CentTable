@@ -1,8 +1,4 @@
-﻿
-
-using CentTable.Models.CentTable.Models;
-
-namespace CentTable.Models
+﻿namespace CentTable.Models
 {
     public class DataGridPermission
     {

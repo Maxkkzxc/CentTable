@@ -9,5 +9,4 @@
         public Column Column { get; set; }
         public string Value { get; set; }
     }
-
 }

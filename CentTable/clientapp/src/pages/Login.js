@@ -1,30 +1,30 @@
 ﻿import React, { useState } from 'react';
 import { TextField, Button, Grid, Typography } from '@mui/material';
-import { useNavigate } from 'react-router-dom';  
+import { useNavigate } from 'react-router-dom';
 import { login } from '../services/authService';
 
 function Login() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);  
-    const [error, setError] = useState(''); 
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const navigate = useNavigate();  
+    const navigate = useNavigate();
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        setLoading(true);  
+        setLoading(true);
 
         try {
             const response = await login(username, password);
 
             if (response.token) {
-                navigate('/dashboard');  
+                navigate('/dashboard');
             }
         } catch (err) {
             setError('Неверный логин или пароль');
         } finally {
-            setLoading(false);  
+            setLoading(false);
         }
     };
 
@@ -57,9 +57,17 @@ function Login() {
                     variant="contained"
                     color="primary"
                     fullWidth
-                    disabled={loading}  
+                    disabled={loading}
                 >
                     {loading ? 'Загрузка...' : 'Войти'}
+                </Button>
+                <Button
+                    fullWidth
+                    color="secondary"
+                    onClick={() => navigate('/register')}
+                    style={{ marginTop: '10px' }}
+                >
+                    Нет аккаунта? Зарегистрироваться
                 </Button>
             </form>
         </Grid>

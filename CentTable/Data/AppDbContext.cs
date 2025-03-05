@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using CentTable.Models;
-using CentTable.Models.CentTable.Models;
 
 namespace CentTable.Data
 {
