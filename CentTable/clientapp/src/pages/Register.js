@@ -1,7 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { TextField, Button, Grid, Typography } from '@mui/material';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/axiosInstance'; // Используем настроенный axiosInstance
 
 function Register() {
     const [username, setUsername] = useState('');
@@ -25,20 +25,20 @@ function Register() {
         setLoading(true);
         setError('');
         try {
-            const response = await axios.post('/api/account/register', {
+            const response = await api.post('account/register', {
                 username,
                 email,
                 firstName,
                 lastName,
                 dateOfBirth,
                 password,
-                confirmPassword 
+                confirmPassword
             });
             localStorage.setItem('token', response.data.token);
             navigate('/dashboard');
         } catch (err) {
             setError('Ошибка регистрации');
-            console.error(err);
+            console.error(err.response ? err.response.data : err);
         } finally {
             setLoading(false);
         }

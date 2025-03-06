@@ -1,26 +1,27 @@
-﻿import React, { useEffect, useState } from 'react';
-import { Button, Grid, Typography } from '@mui/material';
+﻿import React from "react";
+import { Button, Typography, Container } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import { logout } from "../services/authService";
 
 function Dashboard() {
-    const [data, setData] = useState([]);
+    const navigate = useNavigate();
 
-    useEffect(() => {
-        fetch('https://localhost:7261/api/data')  
-            .then((response) => response.json())
-            .then((data) => setData(data));
-    }, []);
+    const handleLogout = () => {
+        logout(); 
+        navigate("/login", { replace: true });
+    };
 
     return (
-        <Grid container spacing={2}>
-            <Grid item xs={12}>
-                <Typography variant="h4">Данные</Typography>
-            </Grid>
-            {data.map((item) => (
-                <Grid item xs={12} sm={6} md={4} key={item.id}>
-                    <Button variant="outlined">{item.name}</Button>
-                </Grid>
-            ))}
-        </Grid>
+        <Container>
+            <Button
+                variant="contained"
+                color="secondary"
+                onClick={handleLogout}
+                style={{ marginTop: "20px" }}
+            >
+                Выйти
+            </Button>
+        </Container>
     );
 }
 
