@@ -1,4 +1,6 @@
-﻿namespace CentTable.Models
+﻿using System.Text.Json.Serialization;
+
+namespace CentTable.Models
 {
     public class DataGrid
     {
@@ -7,6 +9,8 @@
         public bool IsPublic { get; set; }
         public ICollection<Column> Columns { get; set; }
         public ICollection<Row> Rows { get; set; }
+
+        [JsonIgnore]
         public ICollection<DataGridPermission> Permissions { get; set; }
     }
 }

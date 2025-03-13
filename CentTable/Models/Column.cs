@@ -1,4 +1,5 @@
-﻿using CentTable.Enums;
+﻿using System.Text.Json.Serialization;
+using CentTable.Enums;
 
 namespace CentTable.Models
 {
@@ -6,11 +7,16 @@ namespace CentTable.Models
     {
         public int Id { get; set; }
         public int DataGridId { get; set; }
+
+        [JsonIgnore]
         public DataGrid DataGrid { get; set; }
         public string Name { get; set; }
-        public ColumnType Type { get; set; } 
+        public ColumnType Type { get; set; }
         public bool IsRequired { get; set; }
-        public string ValidationRegex { get; set; }  
-        public ICollection<Cell> Cells { get; set; }  
+        public string ValidationRegex { get; set; }
+        public string Options { get; set; }
+
+        [JsonIgnore]
+        public ICollection<Cell> Cells { get; set; }
     }
 }
