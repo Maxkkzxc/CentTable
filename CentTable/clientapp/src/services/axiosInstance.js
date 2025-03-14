@@ -1,6 +1,7 @@
 ﻿import axios from 'axios';
+import Cookies from 'js-cookie';
 
-const getToken = () => localStorage.getItem('token');
+const getToken = () => Cookies.get('token');
 
 const api = axios.create({
     baseURL: 'https://localhost:7261/api/',

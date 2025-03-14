@@ -26,6 +26,8 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/axiosInstance';
+import Cookies from 'js-cookie';
+
 
 const columnTypeOptions = [
     { value: "String", label: "Строка" },
@@ -65,7 +67,7 @@ function Dashboard() {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('token');
+        Cookies.remove('token');
         navigate('/login', { replace: true });
     };
 

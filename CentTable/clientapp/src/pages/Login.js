@@ -2,13 +2,13 @@
 import { TextField, Button, Grid, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../services/authService';
+import Cookies from 'js-cookie';
 
 function Login() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-
     const navigate = useNavigate();
 
     const handleLogin = async (e) => {
@@ -17,12 +17,13 @@ function Login() {
 
         try {
             const response = await login(username, password);
-
             if (response.token) {
+                Cookies.set('token', response.token, { expires: 7, secure: true, sameSite: 'Strict' });
                 navigate('/dashboard');
             }
         } catch (err) {
             setError('Неверный логин или пароль');
+            console.error(err.response ? err.response.data : err);
         } finally {
             setLoading(false);
         }
@@ -38,18 +39,18 @@ function Login() {
                     label="Логин"
                     variant="outlined"
                     fullWidth
+                    margin="normal"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    margin="normal"
                 />
                 <TextField
                     label="Пароль"
                     type="password"
                     variant="outlined"
                     fullWidth
+                    margin="normal"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    margin="normal"
                 />
                 {error && <Typography color="error">{error}</Typography>}
                 <Button

@@ -1,7 +1,8 @@
 ﻿import React, { useState } from 'react';
 import { TextField, Button, Grid, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/axiosInstance'; // Используем настроенный axiosInstance
+import api from '../services/axiosInstance';
+import Cookies from 'js-cookie';
 
 function Register() {
     const [username, setUsername] = useState('');
@@ -13,7 +14,6 @@ function Register() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-
     const navigate = useNavigate();
 
     const handleRegister = async (e) => {
@@ -34,7 +34,7 @@ function Register() {
                 password,
                 confirmPassword
             });
-            localStorage.setItem('token', response.data.token);
+            Cookies.set('token', response.data.token, { expires: 7, secure: true, sameSite: 'Strict' });
             navigate('/dashboard');
         } catch (err) {
             setError('Ошибка регистрации');
