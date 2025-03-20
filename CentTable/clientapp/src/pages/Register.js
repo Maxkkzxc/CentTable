@@ -1,15 +1,50 @@
 ﻿import React, { useState } from 'react';
-import { TextField, Button, Grid, Typography } from '@mui/material';
+import {
+    TextField,
+    Button,
+    Grid,
+    Typography,
+    CircularProgress
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/axiosInstance';
 import Cookies from 'js-cookie';
+
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+
+const CustomTextField = styled(TextField)(({ theme }) => ({
+    '& .MuiOutlinedInput-root': {
+        height: '56px',
+        minHeight: '56px',
+        '& input': {
+            padding: '18.5px 14px',
+        },
+    },
+    marginBottom: theme.spacing(2),
+}));
+
+const StyledDatePicker = styled(DatePicker)(({ theme }) => ({
+    '& .MuiOutlinedInput-root': {
+        height: '56px !important',
+        minHeight: '56px !important',
+        '& input': {
+            padding: '18.5px 14px !important',
+            height: '56px !important',
+        },
+    },
+    marginBottom: theme.spacing(2),
+    width: '100%', 
+}));
 
 function Register() {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState(null);
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
@@ -25,14 +60,15 @@ function Register() {
         setLoading(true);
         setError('');
         try {
+            const formattedDate = dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : '';
             const response = await api.post('account/register', {
                 username,
                 email,
                 firstName,
                 lastName,
-                dateOfBirth,
+                dateOfBirth: formattedDate,
                 password,
-                confirmPassword
+                confirmPassword,
             });
             Cookies.set('token', response.data.token, { expires: 7, secure: true, sameSite: 'Strict' });
             navigate('/dashboard');
@@ -50,71 +86,86 @@ function Register() {
                 <Typography variant="h4" align="center" gutterBottom>
                     Регистрация
                 </Typography>
-                <TextField
+                <CustomTextField
                     label="Логин"
                     variant="outlined"
                     fullWidth
-                    margin="normal"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                 />
-                <TextField
+                <CustomTextField
                     label="Email"
                     variant="outlined"
                     fullWidth
-                    margin="normal"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                 />
-                <TextField
+                <CustomTextField
                     label="Имя"
                     variant="outlined"
                     fullWidth
-                    margin="normal"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                 />
-                <TextField
+                <CustomTextField
                     label="Фамилия"
                     variant="outlined"
                     fullWidth
-                    margin="normal"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                 />
-                <TextField
-                    label="Дата рождения"
-                    variant="outlined"
-                    fullWidth
-                    margin="normal"
-                    type="date"
-                    InputLabelProps={{
-                        shrink: true,
-                    }}
-                    value={dateOfBirth}
-                    onChange={(e) => setDateOfBirth(e.target.value)}
-                />
-                <TextField
+
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <StyledDatePicker
+                        label="Дата рождения"
+                        value={dateOfBirth}
+                        onChange={(newValue) => setDateOfBirth(newValue)}
+                        renderInput={(params) => (
+                            <CustomTextField
+                                {...params}
+                                variant="outlined"
+                                fullWidth
+                                InputLabelProps={{
+                                    ...params.InputLabelProps,
+                                    shrink: true,
+                                }}
+                            />
+                        )}
+                    />
+                </LocalizationProvider>
+
+                <CustomTextField
                     label="Пароль"
                     type="password"
                     variant="outlined"
                     fullWidth
-                    margin="normal"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                 />
-                <TextField
+                <CustomTextField
                     label="Повторите пароль"
                     type="password"
                     variant="outlined"
                     fullWidth
-                    margin="normal"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                 />
                 {error && <Typography color="error">{error}</Typography>}
-                <Button type="submit" variant="contained" color="primary" fullWidth disabled={loading}>
-                    {loading ? 'Регистрация...' : 'Зарегистрироваться'}
+                <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    disabled={loading}
+                    sx={{
+                        backgroundColor: loading ? 'rgba(255, 255, 255, 0.3)' : '#424242',
+                        color: loading ? 'rgba(255, 255, 255, 0.7)' : '#ffffff',
+                        '&:hover': {
+                            backgroundColor: loading ? 'rgba(255, 255, 255, 0.3)' : '#616161',
+                        },
+                    }}
+                >
+                    {loading ? <CircularProgress size={24} color="inherit" /> : 'Зарегистрироваться'}
                 </Button>
                 <Button
                     fullWidth

@@ -1,4 +1,7 @@
-﻿namespace CentTable.ViewModels
+﻿using System.ComponentModel.DataAnnotations;
+using CentTable.Enums;
+
+namespace CentTable.ViewModels
 {
     public class UpdateDataGridModel
     {
@@ -11,6 +14,9 @@
     public class UpdateColumnModel
     {
         public int Id { get; set; }
+        public string Name { get; set; }
+        public ColumnType Type { get; set; }
+        public string ValidationRegex { get; set; }
         public string Options { get; set; }
     }
 

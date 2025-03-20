@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { TextField, Button, Grid, Typography } from '@mui/material';
+import { TextField, Button, Grid, Typography, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../services/authService';
 import Cookies from 'js-cookie';
@@ -59,8 +59,15 @@ function Login() {
                     color="primary"
                     fullWidth
                     disabled={loading}
+                    sx={{
+                        backgroundColor: loading ? 'rgba(255, 255, 255, 0.3)' : '#424242', 
+                        color: loading ? 'rgba(255, 255, 255, 0.7)' : '#ffffff', 
+                        '&:hover': {
+                            backgroundColor: loading ? 'rgba(255, 255, 255, 0.3)' : '#616161', 
+                        },
+                    }}
                 >
-                    {loading ? 'Загрузка...' : 'Войти'}
+                    {loading ? <CircularProgress size={24} color="inherit" /> : 'Войти'}
                 </Button>
                 <Button
                     fullWidth

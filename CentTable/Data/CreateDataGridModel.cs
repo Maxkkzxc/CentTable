@@ -14,9 +14,7 @@ namespace CentTable.Data
     {
         public string Name { get; set; }
         public ColumnType Type { get; set; }
-        public bool IsRequired { get; set; }
         public string ValidationRegex { get; set; }
         public string Options { get; set; }
-        public string InitialValue { get; set; }
     }
 }

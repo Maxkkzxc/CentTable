@@ -17,5 +17,6 @@ namespace CentTable.Models
 
         public bool CanView { get; set; }
         public bool CanEdit { get; set; }
+        public bool CanDelete { get; set; }
     }
 }

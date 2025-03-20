@@ -93,7 +93,6 @@ namespace CentTable.Controllers
                 {
                     Name = c.Name,
                     Type = c.Type,
-                    IsRequired = c.IsRequired,
                     ValidationRegex = c.ValidationRegex,
                     Options = c.Options
                 }).ToList(),
@@ -126,11 +125,7 @@ namespace CentTable.Controllers
 
             foreach (var col in grid.Columns)
             {
-                var colModel = model.Columns.FirstOrDefault(c => c.Name == col.Name);
-                string cellValue = (col.Type == ColumnType.SingleSelect || col.Type == ColumnType.MultiSelect)
-                                        ? null
-                                        : colModel?.InitialValue;
-
+                string cellValue = "";
                 var cell = new Cell
                 {
                     Row = defaultRow,
@@ -157,9 +152,6 @@ namespace CentTable.Controllers
         }
 
 
-
-
-
         [HttpPut("{id}")]
         [Authorize]
         public async Task<IActionResult> UpdateDataGrid(int id, [FromBody] UpdateDataGridModel model)
@@ -179,12 +171,51 @@ namespace CentTable.Controllers
             grid.Name = model.Name;
             grid.IsPublic = model.IsPublic;
 
+            var modelColumnIds = model.Columns.Where(c => c.Id != 0).Select(c => c.Id).ToList();
+            var columnsToRemove = grid.Columns.Where(c => !modelColumnIds.Contains(c.Id)).ToList();
+            foreach (var col in columnsToRemove)
+            {
+                foreach (var row in grid.Rows.ToList())
+                {
+                    var cellsToRemove = row.Cells.Where(c => c.ColumnId == col.Id).ToList();
+                    foreach (var cell in cellsToRemove)
+                    {
+                        _context.Cells.Remove(cell);
+                        row.Cells.Remove(cell);
+                    }
+                }
+                _context.Columns.Remove(col);
+            }
+
             foreach (var colModel in model.Columns)
             {
-                var col = grid.Columns.FirstOrDefault(c => c.Id == colModel.Id);
-                if (col != null)
+                if (colModel.Id != 0)
                 {
-                    col.Options = colModel.Options;
+                    var col = grid.Columns.FirstOrDefault(c => c.Id == colModel.Id);
+                    if (col != null)
+                    {
+                        col.Name = colModel.Name;
+                        col.Type = colModel.Type;
+                        col.ValidationRegex = colModel.ValidationRegex;
+                        col.Options = colModel.Options;
+                    }
+                }
+                else
+                {
+                    var newCol = new Column
+                    {
+                        Name = colModel.Name,
+                        Type = colModel.Type,
+                        ValidationRegex = colModel.ValidationRegex,
+                        Options = colModel.Options,
+                        DataGrid = grid
+                    };
+                    grid.Columns.Add(newCol);
+
+                    foreach (var row in grid.Rows)
+                    {
+                        row.Cells.Add(new Cell { Column = newCol, Value = "", Row = row });
+                    }
                 }
             }
 
@@ -208,7 +239,34 @@ namespace CentTable.Controllers
                                 cell.Value = cellModel.Value?.ToString();
                             }
                         }
+                        else
+                        {
+                            string value = cellModel.Value?.ToString() ?? "";
+                            row.Cells.Add(new Cell { ColumnId = cellModel.ColumnId, Value = value, Row = row });
+                        }
                     }
+                    var existingCellColumnIds = row.Cells.Select(c => c.ColumnId).ToList();
+                    foreach (var col in grid.Columns)
+                    {
+                        if (!existingCellColumnIds.Contains(col.Id))
+                        {
+                            row.Cells.Add(new Cell { ColumnId = col.Id, Value = "", Row = row });
+                        }
+                    }
+                }
+                else
+                {
+                    var newRow = new Row
+                    {
+                        DataGridId = grid.Id,
+                        Cells = new List<Cell>()
+                    };
+                    foreach (var cellModel in rowModel.Cells)
+                    {
+                        string value = cellModel.Value?.ToString() ?? "";
+                        newRow.Cells.Add(new Cell { ColumnId = cellModel.ColumnId, Value = value, Row = newRow });
+                    }
+                    grid.Rows.Add(newRow);
                 }
             }
 
@@ -224,5 +282,34 @@ namespace CentTable.Controllers
 
             return Ok(grid);
         }
+
+
+
+        [HttpDelete("{id}")]
+        [Authorize]
+        public async Task<IActionResult> DeleteDataGrid(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByIdAsync(userId);
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+
+            var grid = await _context.DataGrids
+                .Include(dg => dg.Columns)
+                .Include(dg => dg.Rows)
+                    .ThenInclude(r => r.Cells)
+                .Include(dg => dg.Permissions)
+                .FirstOrDefaultAsync(dg => dg.Id == id);
+
+            if (grid == null)
+                return NotFound();
+
+            //if (!isAdmin && !grid.Permissions.Any(p => p.UserId == userId && p.CanDelete))
+            //    return Forbid();
+
+            _context.DataGrids.Remove(grid);
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
     }
 }

@@ -12,7 +12,6 @@ namespace CentTable.Models
         public DataGrid DataGrid { get; set; }
         public string Name { get; set; }
         public ColumnType Type { get; set; }
-        public bool IsRequired { get; set; }
         public string ValidationRegex { get; set; }
         public string Options { get; set; }
 
