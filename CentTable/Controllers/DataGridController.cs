@@ -1,6 +1,5 @@
 ﻿using System.Security.Claims;
 using CentTable.Data;
-using CentTable.Enums;
 using CentTable.Models;
 using CentTable.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +7,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Linq;
+using System.Linq;
+using System.Threading.Tasks;
+using CentTable.Enums;
+using System.Reflection;
+using System.Linq.Dynamic.Core;
 
 namespace CentTable.Controllers
 {
@@ -36,6 +40,7 @@ namespace CentTable.Controllers
                 .Include(dg => dg.Columns)
                 .Include(dg => dg.Rows)
                     .ThenInclude(r => r.Cells)
+                .Include(dg => dg.Permissions)
                 .AsQueryable();
 
             if (!isAdmin)
@@ -55,9 +60,11 @@ namespace CentTable.Controllers
             var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
 
             var grid = await _context.DataGrids
+                .AsNoTracking()
                 .Include(dg => dg.Columns)
                 .Include(dg => dg.Rows)
                     .ThenInclude(r => r.Cells)
+                .Include(dg => dg.Permissions)
                 .FirstOrDefaultAsync(dg => dg.Id == id);
 
             if (grid == null)
@@ -66,11 +73,51 @@ namespace CentTable.Controllers
             if (!grid.IsPublic && !isAdmin && !grid.Permissions.Any(p => p.UserId == userId && p.CanView))
                 return Forbid();
 
+            foreach (var row in grid.Rows)
+            {
+                foreach (var col in grid.Columns.Where(c => c.Type == ColumnType.External))
+                {
+                    var cell = row.Cells.FirstOrDefault(c => c.ColumnId == col.Id);
+                    if (cell != null && !string.IsNullOrEmpty(cell.Value))
+                    {
+                        try
+                        {
+                            using (var connection = _context.Database.GetDbConnection())
+                            {
+                                if (connection.State != System.Data.ConnectionState.Open)
+                                {
+                                    await connection.OpenAsync();
+                                }
+                                using (var command = connection.CreateCommand())
+                                {
+                                    command.CommandText = $"SELECT TOP 1 [{col.ExternalColumn}] FROM [{col.ExternalTable}] WHERE [{col.ExternalColumn}] = @value";
+
+                                    var parameter = command.CreateParameter();
+                                    parameter.ParameterName = "@value";
+                                    parameter.Value = cell.Value;
+                                    command.Parameters.Add(parameter);
+
+                                    var result = await command.ExecuteScalarAsync();
+                                    if (result != null && result != DBNull.Value)
+                                    {
+                                        cell.Value = result.ToString();
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Ошибка динамического запроса: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
             return Ok(grid);
         }
 
+
         [HttpPost]
-        [Authorize]
         public async Task<IActionResult> CreateDataGrid([FromBody] CreateDataGridModel model)
         {
             if (model == null)
@@ -81,7 +128,6 @@ namespace CentTable.Controllers
                 var errors = string.Join("; ", ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage));
-                Console.WriteLine("Ошибки валидации: " + errors);
                 return BadRequest(errors);
             }
 
@@ -94,10 +140,12 @@ namespace CentTable.Controllers
                     Name = c.Name,
                     Type = c.Type,
                     ValidationRegex = c.ValidationRegex,
-                    Options = c.Options
+                    Options = c.Options,
+                    ExternalTable = c.ExternalTable,
+                    ExternalColumn = c.ExternalColumn
                 }).ToList(),
-                Rows = new List<Row>(),
-                Permissions = new List<DataGridPermission>()
+                Rows = new System.Collections.Generic.List<Row>(),
+                Permissions = new System.Collections.Generic.List<DataGridPermission>()
             };
 
             foreach (var col in grid.Columns)
@@ -110,27 +158,25 @@ namespace CentTable.Controllers
             {
                 await _context.SaveChangesAsync();
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 var inner = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-                Console.WriteLine("Ошибка при сохранении таблицы и колонок: " + inner);
                 return StatusCode(500, "Ошибка при сохранении таблицы и колонок: " + inner);
             }
 
             var defaultRow = new Row
             {
                 DataGridId = grid.Id,
-                Cells = new List<Cell>()
+                Cells = new System.Collections.Generic.List<Cell>()
             };
 
             foreach (var col in grid.Columns)
             {
-                string cellValue = "";
                 var cell = new Cell
                 {
                     Row = defaultRow,
                     ColumnId = col.Id,
-                    Value = cellValue
+                    Value = ""
                 };
                 defaultRow.Cells.Add(cell);
             }
@@ -141,19 +187,16 @@ namespace CentTable.Controllers
             {
                 await _context.SaveChangesAsync();
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 var inner = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-                Console.WriteLine("Ошибка при сохранении строки и ячеек: " + inner);
                 return StatusCode(500, "Ошибка при сохранении строки и ячеек: " + inner);
             }
 
             return Ok(grid);
         }
 
-
         [HttpPut("{id}")]
-        [Authorize]
         public async Task<IActionResult> UpdateDataGrid(int id, [FromBody] UpdateDataGridModel model)
         {
             if (model == null)
@@ -163,10 +206,17 @@ namespace CentTable.Controllers
                 .Include(dg => dg.Columns)
                 .Include(dg => dg.Rows)
                     .ThenInclude(r => r.Cells)
+                .Include(dg => dg.Permissions)
                 .FirstOrDefaultAsync(dg => dg.Id == id);
 
             if (grid == null)
                 return NotFound();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByIdAsync(userId);
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+            if (!isAdmin && !grid.Permissions.Any(p => p.UserId == userId && p.CanEdit))
+                return Forbid();
 
             grid.Name = model.Name;
             grid.IsPublic = model.IsPublic;
@@ -198,6 +248,8 @@ namespace CentTable.Controllers
                         col.Type = colModel.Type;
                         col.ValidationRegex = colModel.ValidationRegex;
                         col.Options = colModel.Options;
+                        col.ExternalTable = colModel.ExternalTable;
+                        col.ExternalColumn = colModel.ExternalColumn;
                     }
                 }
                 else
@@ -208,6 +260,8 @@ namespace CentTable.Controllers
                         Type = colModel.Type,
                         ValidationRegex = colModel.ValidationRegex,
                         Options = colModel.Options,
+                        ExternalTable = colModel.ExternalTable,
+                        ExternalColumn = colModel.ExternalColumn,
                         DataGrid = grid
                     };
                     grid.Columns.Add(newCol);
@@ -231,7 +285,7 @@ namespace CentTable.Controllers
                         {
                             if (cellModel.Value is JArray jArray)
                             {
-                                var arr = jArray.ToObject<List<string>>();
+                                var arr = jArray.ToObject<System.Collections.Generic.List<string>>();
                                 cell.Value = string.Join(",", arr);
                             }
                             else
@@ -259,7 +313,7 @@ namespace CentTable.Controllers
                     var newRow = new Row
                     {
                         DataGridId = grid.Id,
-                        Cells = new List<Cell>()
+                        Cells = new System.Collections.Generic.List<Cell>()
                     };
                     foreach (var cellModel in rowModel.Cells)
                     {
@@ -274,19 +328,15 @@ namespace CentTable.Controllers
             {
                 await _context.SaveChangesAsync();
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
-                Console.WriteLine("Ошибка при обновлении таблицы: " + ex.ToString());
                 return StatusCode(500, "Ошибка при обновлении таблицы: " + ex.Message);
             }
 
             return Ok(grid);
         }
 
-
-
         [HttpDelete("{id}")]
-        [Authorize]
         public async Task<IActionResult> DeleteDataGrid(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -303,13 +353,58 @@ namespace CentTable.Controllers
             if (grid == null)
                 return NotFound();
 
-            //if (!isAdmin && !grid.Permissions.Any(p => p.UserId == userId && p.CanDelete))
-            //    return Forbid();
+            if (!isAdmin && !grid.Permissions.Any(p => p.UserId == userId && p.CanDelete))
+                return Forbid();
 
             _context.DataGrids.Remove(grid);
             await _context.SaveChangesAsync();
             return Ok();
         }
 
+        [HttpPut("{id}/permissions")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdatePermissions(int id, [FromBody] UpdateDataGridPermissionsModel model)
+        {
+            if (id != model.DataGridId)
+                return BadRequest("Некорректный идентификатор таблицы.");
+
+            var grid = await _context.DataGrids
+                .Include(dg => dg.Permissions)
+                .FirstOrDefaultAsync(dg => dg.Id == id);
+
+            if (grid == null)
+                return NotFound();
+
+            if (grid.Permissions.Any())
+            {
+                _context.DataGridPermissions.RemoveRange(grid.Permissions);
+            }
+            grid.Permissions.Clear();
+
+            foreach (var permModel in model.Permissions)
+            {
+                grid.Permissions.Add(new DataGridPermission
+                {
+                    DataGridId = id,
+                    UserId = permModel.UserId,
+                    CanView = permModel.CanView,
+                    CanEdit = permModel.CanEdit,
+                    CanDelete = permModel.CanDelete
+                });
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                grid = await _context.DataGrids
+                    .Include(dg => dg.Permissions)
+                    .FirstOrDefaultAsync(dg => dg.Id == id);
+                return Ok(grid);
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, "Ошибка при обновлении разрешений: " + ex.Message);
+            }
+        }
     }
 }

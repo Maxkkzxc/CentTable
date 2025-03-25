@@ -15,6 +15,9 @@ namespace CentTable.Models
         public string ValidationRegex { get; set; }
         public string Options { get; set; }
 
+        public string ExternalTable { get; set; }
+        public string ExternalColumn { get; set; }
+
         [JsonIgnore]
         public ICollection<Cell> Cells { get; set; }
     }

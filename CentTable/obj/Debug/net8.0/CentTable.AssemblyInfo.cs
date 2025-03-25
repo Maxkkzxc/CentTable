@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CentTable")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbca6e7cbe490f193f47a1667bb18c93572fb8bf")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c4c00f3c57bf6e36ee4941bdf6ae405b113672dd")]
 [assembly: System.Reflection.AssemblyProductAttribute("CentTable")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CentTable")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
