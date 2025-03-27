@@ -16,7 +16,5 @@ namespace CentTable.Data
         public ColumnType Type { get; set; }
         public string ValidationRegex { get; set; }
         public string Options { get; set; }
-        public string ExternalTable { get; set; }
-        public string ExternalColumn { get; set; }
     }
 }

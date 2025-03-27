@@ -73,45 +73,6 @@ namespace CentTable.Controllers
             if (!grid.IsPublic && !isAdmin && !grid.Permissions.Any(p => p.UserId == userId && p.CanView))
                 return Forbid();
 
-            foreach (var row in grid.Rows)
-            {
-                foreach (var col in grid.Columns.Where(c => c.Type == ColumnType.External))
-                {
-                    var cell = row.Cells.FirstOrDefault(c => c.ColumnId == col.Id);
-                    if (cell != null && !string.IsNullOrEmpty(cell.Value))
-                    {
-                        try
-                        {
-                            using (var connection = _context.Database.GetDbConnection())
-                            {
-                                if (connection.State != System.Data.ConnectionState.Open)
-                                {
-                                    await connection.OpenAsync();
-                                }
-                                using (var command = connection.CreateCommand())
-                                {
-                                    command.CommandText = $"SELECT TOP 1 [{col.ExternalColumn}] FROM [{col.ExternalTable}] WHERE [{col.ExternalColumn}] = @value";
-
-                                    var parameter = command.CreateParameter();
-                                    parameter.ParameterName = "@value";
-                                    parameter.Value = cell.Value;
-                                    command.Parameters.Add(parameter);
-
-                                    var result = await command.ExecuteScalarAsync();
-                                    if (result != null && result != DBNull.Value)
-                                    {
-                                        cell.Value = result.ToString();
-                                    }
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Ошибка динамического запроса: {ex.Message}");
-                        }
-                    }
-                }
-            }
 
             return Ok(grid);
         }
@@ -141,8 +102,6 @@ namespace CentTable.Controllers
                     Type = c.Type,
                     ValidationRegex = c.ValidationRegex,
                     Options = c.Options,
-                    ExternalTable = c.ExternalTable,
-                    ExternalColumn = c.ExternalColumn
                 }).ToList(),
                 Rows = new System.Collections.Generic.List<Row>(),
                 Permissions = new System.Collections.Generic.List<DataGridPermission>()
@@ -248,8 +207,6 @@ namespace CentTable.Controllers
                         col.Type = colModel.Type;
                         col.ValidationRegex = colModel.ValidationRegex;
                         col.Options = colModel.Options;
-                        col.ExternalTable = colModel.ExternalTable;
-                        col.ExternalColumn = colModel.ExternalColumn;
                     }
                 }
                 else
@@ -260,8 +217,6 @@ namespace CentTable.Controllers
                         Type = colModel.Type,
                         ValidationRegex = colModel.ValidationRegex,
                         Options = colModel.Options,
-                        ExternalTable = colModel.ExternalTable,
-                        ExternalColumn = colModel.ExternalColumn,
                         DataGrid = grid
                     };
                     grid.Columns.Add(newCol);
@@ -405,6 +360,41 @@ namespace CentTable.Controllers
             {
                 return StatusCode(500, "Ошибка при обновлении разрешений: " + ex.Message);
             }
+        }
+
+        [HttpGet("all-records")]
+        public async Task<IActionResult> GetAllRecords()
+        {
+            var grids = await _context.DataGrids
+                .Include(dg => dg.Columns)
+                .Include(dg => dg.Rows)
+                    .ThenInclude(r => r.Cells)
+                .ToListAsync();
+
+            var result = new List<object>();
+
+            foreach (var grid in grids)
+            {
+                var columns = grid.Columns.Select(c => new { id = c.Id, name = c.Name }).ToList();
+
+                foreach (var row in grid.Rows)
+                {
+                    var cellValues = new Dictionary<int, string>();
+                    foreach (var cell in row.Cells)
+                    {
+                        cellValues[cell.ColumnId] = cell.Value;
+                    }
+                    result.Add(new
+                    {
+                        gridId = grid.Id,
+                        gridName = grid.Name,
+                        rowId = row.Id,
+                        cellValues = cellValues,
+                        columns = columns
+                    });
+                }
+            }
+            return Ok(result);
         }
     }
 }
