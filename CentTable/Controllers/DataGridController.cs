@@ -396,5 +396,92 @@ namespace CentTable.Controllers
             }
             return Ok(result);
         }
+
+        [HttpPost("batch-delete")]
+        public async Task<IActionResult> BatchDeleteRows([FromBody] BatchDeleteModel model)
+        {
+            if (model == null || model.RowIds == null || !model.RowIds.Any())
+                return BadRequest("Список строк пуст");
+
+            var rows = await _context.Rows
+                .Where(r => model.RowIds.Contains(r.Id))
+                .Include(r => r.Cells)
+                .ToListAsync();
+
+            if (rows.Count == 0)
+                return NotFound("Ни одна строка не найдена");
+
+            foreach (var row in rows)
+            {
+                _context.Cells.RemoveRange(row.Cells);
+            }
+
+            _context.Rows.RemoveRange(rows);
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                var innerMessage = ex.InnerException?.Message ?? "Нет дополнительной информации";
+                return StatusCode(500, $"Ошибка удаления строк: {innerMessage}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Ошибка удаления строк: {ex.Message}");
+            }
+
+            return Ok(new { Deleted = rows.Count });
+        }
+
+        [HttpPost("batch-insert")]
+        public async Task<IActionResult> BatchInsertRows([FromBody] BatchInsertModel model)
+        {
+            if (model == null || model.Rows == null || !model.Rows.Any())
+                return BadRequest("Нет строк для вставки");
+
+            var dataGrid = await _context.DataGrids
+                                 .Include(dg => dg.Columns)
+                                 .Include(dg => dg.Rows)
+                                 .FirstOrDefaultAsync(dg => dg.Id == model.DataGridId);
+            if (dataGrid == null)
+                return NotFound("DataGrid не найден");
+
+            foreach (var copyRow in model.Rows)
+            {
+                var newRow = new Row
+                {
+                    DataGridId = dataGrid.Id,
+                    Cells = new List<Cell>()
+                };
+
+                foreach (var copyCell in copyRow.Cells)
+                {
+                    if (dataGrid.Columns.Any(c => c.Id == copyCell.ColumnId))
+                    {
+                        newRow.Cells.Add(new Cell
+                        {
+                            ColumnId = copyCell.ColumnId,
+                            Value = copyCell.Value ?? ""
+                        });
+                    }
+                }
+
+                dataGrid.Rows.Add(newRow);
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Ошибка при вставке строк: " + ex.Message);
+            }
+
+            return Ok(new { Inserted = model.Rows.Count });
+        }
+
     }
 }

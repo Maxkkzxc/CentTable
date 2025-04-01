@@ -19,11 +19,19 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions
+    DialogActions,
+    Tooltip,
+    List,
+    ListItem,
+    ListItemButton,
+    ListItemText,
+    Divider
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
+import FileCopyIcon from '@mui/icons-material/FileCopy';
+import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/axiosInstance';
 import Cookies from 'js-cookie';
@@ -79,9 +87,15 @@ function Dashboard() {
     const [editingValue, setEditingValue] = useState("");
 
     const [userInfo, setUserInfo] = useState({ login: '', role: '' });
-
     const [openPermissionDialog, setOpenPermissionDialog] = useState(false);
-    const [selectedGrid, setSelectedGrid] = useState(null);
+    const [selectedGridForPermission, setSelectedGridForPermission] = useState(null);
+
+    const [selectedRows, setSelectedRows] = useState({});
+    const [clipboard, setClipboard] = useState({ rows: null, sourceGridId: null });
+
+    const [selectedGridId, setSelectedGridId] = useState(null);
+
+    const columnWidth = 150;
 
     const isAdmin = userInfo.role === 'Admin';
 
@@ -98,6 +112,17 @@ function Dashboard() {
         }
         fetchDataGrids();
     }, []);
+
+    useEffect(() => {
+        if (dataGrids.length > 0 && !selectedGridId) {
+            setSelectedGridId(dataGrids[0].id);
+        }
+    }, [dataGrids, selectedGridId]);
+
+    useEffect(() => {
+        setSelectedRows({});
+        setClipboard({ rows: null, sourceGridId: null });
+    }, [selectedGridId]);
 
     const fetchDataGrids = async () => {
         try {
@@ -165,6 +190,7 @@ function Dashboard() {
                 }];
             }
             setDataGrids([...dataGrids, newGrid]);
+            setSelectedGridId(newGrid.id);
             handleCloseCreate();
         } catch (err) {
             console.error("Ошибка при создании таблицы:", err.response ? err.response.data : err.message);
@@ -310,6 +336,9 @@ function Dashboard() {
             try {
                 await api.delete(`datagrid/${gridId}`);
                 setDataGrids(prev => prev.filter(g => g.id !== gridId));
+                if (selectedGridId === gridId) {
+                    setSelectedGridId(null);
+                }
             } catch (err) {
                 console.error("Ошибка при удалении таблицы:", err.response ? err.response.data : err.message);
                 alert("Ошибка при удалении таблицы");
@@ -318,11 +347,90 @@ function Dashboard() {
     };
 
     const handleOpenPermissionDialog = (grid) => {
-        setSelectedGrid(grid);
+        setSelectedGridForPermission(grid);
         setOpenPermissionDialog(true);
     };
 
-    const renderGridCard = (grid) => {
+    const handleRowSelection = (gridId, rowId, isChecked) => {
+        setSelectedRows(prev => {
+            const prevRows = prev[gridId] || [];
+            if (isChecked) {
+                return { ...prev, [gridId]: [...prevRows, rowId] };
+            } else {
+                return { ...prev, [gridId]: prevRows.filter(id => id !== rowId) };
+            }
+        });
+    };
+
+    const handleBatchDelete = async (gridId) => {
+        const rowsToDelete = selectedRows[gridId];
+        if (!rowsToDelete || rowsToDelete.length === 0) {
+            alert("Нет выбранных строк для удаления");
+            return;
+        }
+        try {
+            await api.post('datagrid/batch-delete', { RowIds: rowsToDelete });
+            fetchDataGrids();
+            setSelectedRows(prev => ({ ...prev, [gridId]: [] }));
+        } catch (err) {
+            console.error("Ошибка пакетного удаления:", err);
+            alert("Ошибка пакетного удаления");
+        }
+    };
+
+    const handleCopySelected = (grid) => {
+        const rowsToCopy = selectedRows[grid.id];
+        if (!rowsToCopy || rowsToCopy.length === 0) {
+            alert("Нет выбранных строк для копирования");
+            return;
+        }
+
+        const copiedRows = grid.rows.filter(row => rowsToCopy.includes(row.id)).map(row => {
+            return {
+                Cells: row.cells.map(cell => {
+                    const column = grid.columns.find(col => Number(col.id) === Number(cell.columnId));
+                    return {
+                        ColumnId: cell.columnId,
+                        ColumnName: column ? column.name : "",
+                        Value: cell.value
+                    };
+                })
+            };
+        });
+
+        setClipboard({ rows: copiedRows, sourceGridId: grid.id });
+        alert("Строки скопированы");
+    };
+
+    const handlePasteCopied = async (grid) => {
+        if (!clipboard.rows || clipboard.rows.length === 0) {
+            alert("Буфер пуст. Сначала скопируйте строки.");
+            return;
+        }
+        const payload = {
+            DataGridId: grid.id,
+            Rows: clipboard.rows.map(row => ({
+                Cells: row.Cells.map(cell => ({
+                    ColumnId: cell.ColumnId,
+                    ColumnName: cell.ColumnName,
+                    Value: cell.Value
+                }))
+            }))
+        };
+
+        try {
+            const res = await api.post('datagrid/batch-insert', payload);
+            alert(`Успешная вставка`);
+            fetchDataGrids();
+            setSelectedRows(prev => ({ ...prev, [grid.id]: [] }));
+            setClipboard({ rows: null, sourceGridId: null });
+        } catch (err) {
+            console.error("Ошибка при вставке скопированных строк:", err);
+            alert("Ошибка при вставке строк");
+        }
+    };
+
+    const renderGridCard = (grid, columnWidth) => {
         return (
             <Card key={grid.id} variant="outlined" sx={{ mb: 2, p: 1 }}>
                 <CardContent>
@@ -345,6 +453,23 @@ function Dashboard() {
                             </IconButton>
                         </Box>
                     </Box>
+                    <Box sx={{ mb: 1, display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <Tooltip title="Удалить выбранные строки">
+                            <IconButton color="secondary" onClick={() => handleBatchDelete(grid.id)}>
+                                <DeleteIcon />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Копировать выбранные строки">
+                            <IconButton color="primary" onClick={() => handleCopySelected(grid)}>
+                                <FileCopyIcon />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Вставить скопированные строки">
+                            <IconButton color="success" onClick={() => handlePasteCopied(grid)}>
+                                <ContentPasteIcon />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
                     <Typography variant="body2">
                         {grid.isPublic ? 'Публичная' : 'Приватная'}
                     </Typography>
@@ -353,8 +478,9 @@ function Dashboard() {
                             <table style={{ borderCollapse: 'collapse', width: '100%' }}>
                                 <thead>
                                     <tr>
+                                        <th style={{ border: '1px solid #ccc', padding: '4px', width: '40px' }}>✓</th>
                                         {grid.columns.map(col => (
-                                            <th key={col.id} style={{ border: '1px solid #ccc', padding: '4px' }}>
+                                            <th key={col.id} style={{ border: '1px solid #ccc', padding: '4px', minWidth: columnWidth }}>
                                                 <Typography variant="subtitle2">{col.name}</Typography>
                                                 {(col.type === "SingleSelect" || col.type === "MultiSelect") && (
                                                     <Typography variant="caption">Варианты: {col.options}</Typography>
@@ -367,6 +493,12 @@ function Dashboard() {
                                     {grid.rows && grid.rows.length > 0 ? (
                                         grid.rows.map(row => (
                                             <tr key={row.id}>
+                                                <td style={{ border: '1px solid #ccc', padding: '4px', textAlign: 'center' }}>
+                                                    <Checkbox
+                                                        checked={selectedRows[grid.id]?.includes(row.id) || false}
+                                                        onChange={(e) => handleRowSelection(grid.id, row.id, e.target.checked)}
+                                                    />
+                                                </td>
                                                 {grid.columns.map(col => {
                                                     const cell = (row.cells || []).find(c => Number(c.columnId) === Number(col.id)) || { value: "" };
                                                     let cellControl = null;
@@ -400,7 +532,7 @@ function Dashboard() {
                                                         );
                                                     } else if (col.type === "MultiSelect") {
                                                         const opts = (col.options || "").split(',').map(o => o.trim()).filter(o => o);
-                                                        const selected = cell.value ? cell.value.split(',').map(s => s.trim()).filter(s => s) : [];
+                                                        const selected = cell.value ? cell.value.split(',').map(s => s.trim()) : [];
                                                         cellControl = (
                                                             <Box>
                                                                 {opts.map((opt, idx) => (
@@ -449,8 +581,10 @@ function Dashboard() {
                                                             cellControl = (
                                                                 <Typography
                                                                     variant="body2"
-                                                                    onDoubleClick={() => handleCellClick(grid.id, row.id, col.id, cell.value)}
-                                                                    style={{ cursor: 'pointer', whiteSpace: 'pre-wrap', minHeight: '24px' }}
+                                                                    onDoubleClick={() =>
+                                                                        handleCellClick(grid.id, row.id, col.id, cell.value)
+                                                                    }
+                                                                    style={{ cursor: "pointer", whiteSpace: "pre-wrap", minHeight: "24px" }}
                                                                 >
                                                                     {cell.value || "\u00A0"}
                                                                 </Typography>
@@ -458,7 +592,7 @@ function Dashboard() {
                                                         }
                                                     }
                                                     return (
-                                                        <td key={col.id} style={{ border: '1px solid #ccc', padding: '4px' }}>
+                                                        <td key={col.id} style={{ border: "1px solid #ccc", padding: "4px", minWidth: columnWidth }}>
                                                             {cellControl}
                                                         </td>
                                                     );
@@ -467,7 +601,7 @@ function Dashboard() {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={grid.columns.length} style={{ textAlign: 'center', padding: '8px' }}>
+                                            <td colSpan={grid.columns.length + 1} style={{ textAlign: "center", padding: "8px" }}>
                                                 Нет данных для отображения.
                                             </td>
                                         </tr>
@@ -483,6 +617,8 @@ function Dashboard() {
         );
     };
 
+    const selectedGrid = dataGrids.find(grid => grid.id === selectedGridId);
+
     return (
         <>
             <AppBar position="static">
@@ -490,37 +626,64 @@ function Dashboard() {
                     <Typography variant="h6" sx={{ flexGrow: 1 }}>
                         CentTable Dashboard
                     </Typography>
-                    <Box sx={{ mr: 2, textAlign: 'right' }}>
-                        <Typography variant="body2">
-                            {userInfo.login}
-                        </Typography>
-                        <Typography variant="caption">
-                            {userInfo.role}
-                        </Typography>
+                    <Box sx={{ mr: 2, textAlign: "right" }}>
+                        <Typography variant="body2">{userInfo.login}</Typography>
+                        <Typography variant="caption">{userInfo.role}</Typography>
                     </Box>
                     <Button color="inherit" onClick={handleLogout} startIcon={<LogoutIcon />}>
                         Выйти
                     </Button>
                 </Toolbar>
             </AppBar>
-            <Container sx={{ mt: 4 }}>
-                <Typography variant="h4" gutterBottom>
-                    Таблицы
-                </Typography>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<AddIcon />}
-                    onClick={handleOpenCreate}
-                    sx={{ mb: 2 }}
-                >
-                    Создать таблицу
-                </Button>
-                {loading ? (
-                    <Typography>Загрузка...</Typography>
-                ) : (
-                    dataGrids.map(grid => renderGridCard(grid))
-                )}
+            <Container maxWidth={false} sx={{ mt: 2, height: 'calc(100vh - 64px - 16px)' }}>
+                <Box sx={{ display: "flex", height: "100%" }}>
+                    <Box
+                        sx={{
+                            minWidth: "200px",
+                            borderRight: "1px solid #ccc",
+                            overflowY: "auto"
+                        }}
+                    >
+                        <Box sx={{ p: 1 }}>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={<AddIcon />}
+                                onClick={handleOpenCreate}
+                                fullWidth
+                            >
+                                Создать
+                            </Button>
+                        </Box>
+                        <Divider />
+                        {loading ? (
+                            <Typography sx={{ mt: 2, p: 1 }}>Загрузка...</Typography>
+                        ) : (
+                            <List>
+                                {dataGrids.map(grid => (
+                                    <ListItem key={grid.id} disablePadding>
+                                        <ListItemButton
+                                            selected={grid.id === selectedGridId}
+                                            onClick={() => setSelectedGridId(grid.id)}
+                                        >
+                                            <ListItemText primary={grid.name} />
+                                        </ListItemButton>
+                                    </ListItem>
+                                ))}
+                            </List>
+                        )}
+                    </Box>
+
+                    <Box sx={{ flexGrow: 1, overflowX: 'auto', overflowY: 'auto' }}>
+                        {selectedGrid ? (
+                            renderGridCard(selectedGrid, columnWidth)
+                        ) : (
+                            <Typography variant="h6" sx={{ mt: 4, textAlign: "center" }}>
+                                Выберите таблицу из списка слева
+                            </Typography>
+                        )}
+                    </Box>
+                </Box>
             </Container>
 
             <Dialog open={openCreate} onClose={handleCloseCreate} fullWidth maxWidth="md">
@@ -538,18 +701,12 @@ function Dashboard() {
                         variant="outlined"
                         sx={{
                             mb: 2,
-                            '& .MuiInputLabel-root': {
-                                color: 'rgba(255, 255, 255, 0.7)',
-                            },
+                            '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
                             '& .MuiOutlinedInput-root': {
                                 backgroundColor: 'rgb(48, 48, 48)',
                                 color: 'white',
-                                '& fieldset': {
-                                    borderColor: 'rgba(255, 255, 255, 0.5)',
-                                },
-                                '&:hover fieldset': {
-                                    borderColor: '#1976d2',
-                                },
+                                '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                '&:hover fieldset': { borderColor: '#1976d2' },
                             },
                         }}
                     />
@@ -579,12 +736,8 @@ function Dashboard() {
                                     '& .MuiOutlinedInput-root': {
                                         backgroundColor: 'rgb(48, 48, 48)',
                                         color: 'white',
-                                        '& fieldset': {
-                                            borderColor: 'rgba(255, 255, 255, 0.5)',
-                                        },
-                                        '&:hover fieldset': {
-                                            borderColor: '#1976d2',
-                                        },
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                        '&:hover fieldset': { borderColor: '#1976d2' },
                                     },
                                 }}
                             />
@@ -600,12 +753,8 @@ function Dashboard() {
                                     '& .MuiOutlinedInput-root': {
                                         backgroundColor: 'rgb(48, 48, 48)',
                                         color: 'white',
-                                        '& fieldset': {
-                                            borderColor: 'rgba(255, 255, 255, 0.5)',
-                                        },
-                                        '&:hover fieldset': {
-                                            borderColor: '#1976d2',
-                                        },
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                        '&:hover fieldset': { borderColor: '#1976d2' },
                                     },
                                 }}
                             >
@@ -626,12 +775,8 @@ function Dashboard() {
                                         '& .MuiOutlinedInput-root': {
                                             backgroundColor: 'rgb(48, 48, 48)',
                                             color: 'white',
-                                            '& fieldset': {
-                                                borderColor: 'rgba(255, 255, 255, 0.5)',
-                                            },
-                                            '&:hover fieldset': {
-                                                borderColor: '#1976d2',
-                                            },
+                                            '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                            '&:hover fieldset': { borderColor: '#1976d2' },
                                         },
                                     }}
                                 />
@@ -647,12 +792,8 @@ function Dashboard() {
                                         '& .MuiOutlinedInput-root': {
                                             backgroundColor: 'rgb(48, 48, 48)',
                                             color: 'white',
-                                            '& fieldset': {
-                                                borderColor: 'rgba(255, 255, 255, 0.5)',
-                                            },
-                                            '&:hover fieldset': {
-                                                borderColor: '#1976d2',
-                                            },
+                                            '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                            '&:hover fieldset': { borderColor: '#1976d2' },
                                         },
                                     }}
                                 />
@@ -691,18 +832,12 @@ function Dashboard() {
                         variant="outlined"
                         sx={{
                             mb: 2,
-                            '& .MuiInputLabel-root': {
-                                color: 'rgba(255, 255, 255, 0.7)',
-                            },
+                            '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
                             '& .MuiOutlinedInput-root': {
                                 backgroundColor: 'rgb(48, 48, 48)',
                                 color: 'white',
-                                '& fieldset': {
-                                    borderColor: 'rgba(255, 255, 255, 0.5)',
-                                },
-                                '&:hover fieldset': {
-                                    borderColor: '#1976d2',
-                                },
+                                '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                '&:hover fieldset': { borderColor: '#1976d2' },
                             },
                         }}
                     />
@@ -732,12 +867,8 @@ function Dashboard() {
                                     '& .MuiOutlinedInput-root': {
                                         backgroundColor: 'rgb(48, 48, 48)',
                                         color: 'white',
-                                        '& fieldset': {
-                                            borderColor: 'rgba(255, 255, 255, 0.5)',
-                                        },
-                                        '&:hover fieldset': {
-                                            borderColor: '#1976d2',
-                                        },
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                        '&:hover fieldset': { borderColor: '#1976d2' },
                                     },
                                 }}
                             />
@@ -753,12 +884,8 @@ function Dashboard() {
                                     '& .MuiOutlinedInput-root': {
                                         backgroundColor: 'rgb(48, 48, 48)',
                                         color: 'white',
-                                        '& fieldset': {
-                                            borderColor: 'rgba(255, 255, 255, 0.5)',
-                                        },
-                                        '&:hover fieldset': {
-                                            borderColor: '#1976d2',
-                                        },
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                        '&:hover fieldset': { borderColor: '#1976d2' },
                                     },
                                 }}
                             >
@@ -779,12 +906,8 @@ function Dashboard() {
                                         '& .MuiOutlinedInput-root': {
                                             backgroundColor: 'rgb(48, 48, 48)',
                                             color: 'white',
-                                            '& fieldset': {
-                                                borderColor: 'rgba(255, 255, 255, 0.5)',
-                                            },
-                                            '&:hover fieldset': {
-                                                borderColor: '#1976d2',
-                                            },
+                                            '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                            '&:hover fieldset': { borderColor: '#1976d2' },
                                         },
                                     }}
                                 />
@@ -800,12 +923,8 @@ function Dashboard() {
                                         '& .MuiOutlinedInput-root': {
                                             backgroundColor: 'rgb(48, 48, 48)',
                                             color: 'white',
-                                            '& fieldset': {
-                                                borderColor: 'rgba(255, 255, 255, 0.5)',
-                                            },
-                                            '&:hover fieldset': {
-                                                borderColor: '#1976d2',
-                                            },
+                                            '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                            '&:hover fieldset': { borderColor: '#1976d2' },
                                         },
                                     }}
                                 />
@@ -829,11 +948,11 @@ function Dashboard() {
                 </DialogActions>
             </Dialog>
 
-            {isAdmin && selectedGrid && (
+            {isAdmin && selectedGridForPermission && (
                 <PermissionDialog
                     open={openPermissionDialog}
                     onClose={() => setOpenPermissionDialog(false)}
-                    dataGridId={selectedGrid.id}
+                    dataGridId={selectedGridForPermission.id}
                     onPermissionsUpdated={fetchDataGrids}
                 />
             )}

@@ -12,4 +12,24 @@ namespace CentTable.Models
 
         public ICollection<Cell> Cells { get; set; }
     }
+    public class BatchDeleteModel
+    {
+        public List<int> RowIds { get; set; }
+    }
+    public class BatchInsertModel
+    {
+        public int DataGridId { get; set; }
+        public List<CopyRowModel> Rows { get; set; }
+    }
+
+    public class CopyRowModel
+    {
+        public List<CopyCellModel> Cells { get; set; }
+    }
+
+    public class CopyCellModel
+    {
+        public int ColumnId { get; set; }
+        public string Value { get; set; }
+    }
 }
