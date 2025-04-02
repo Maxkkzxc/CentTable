@@ -37,11 +37,13 @@ namespace CentTable.Services
 
             claims.AddRange(roleClaims);
 
+            int tokenLifetime = int.Parse(_configuration["Jwt:TokenLifetimeDays"]);
+
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(2),
+                expires: DateTime.UtcNow.AddDays(tokenLifetime),
                 signingCredentials: creds
             );
 

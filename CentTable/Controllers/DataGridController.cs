@@ -78,19 +78,14 @@ namespace CentTable.Controllers
         }
 
 
-        [HttpPost]
+        [HttpPost("create")]
         public async Task<IActionResult> CreateDataGrid([FromBody] CreateDataGridModel model)
         {
             if (model == null)
                 return BadRequest("Модель равна null");
 
             if (!ModelState.IsValid)
-            {
-                var errors = string.Join("; ", ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage));
-                return BadRequest(errors);
-            }
+                return BadRequest(ModelState);
 
             var grid = new DataGrid
             {
@@ -102,45 +97,39 @@ namespace CentTable.Controllers
                     Type = c.Type,
                     ValidationRegex = c.ValidationRegex,
                     Options = c.Options,
-                }).ToList(),
-                Rows = new System.Collections.Generic.List<Row>(),
-                Permissions = new System.Collections.Generic.List<DataGridPermission>()
+                    MaxLength = c.MaxLength,
+                    MinValue = c.MinValue,
+                    MaxValue = c.MaxValue
+                }).ToList()
             };
 
-            foreach (var col in grid.Columns)
-            {
-                col.DataGrid = grid;
-            }
-
             _context.DataGrids.Add(grid);
+
             try
             {
                 await _context.SaveChangesAsync();
             }
             catch (System.Exception ex)
             {
-                var inner = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-                return StatusCode(500, "Ошибка при сохранении таблицы и колонок: " + inner);
+                return StatusCode(500, "Ошибка при сохранении таблицы: " + ex.Message);
             }
 
             var defaultRow = new Row
             {
                 DataGridId = grid.Id,
-                Cells = new System.Collections.Generic.List<Cell>()
+                Cells = new List<Cell>()
             };
 
             foreach (var col in grid.Columns)
             {
-                var cell = new Cell
+                defaultRow.Cells.Add(new Cell
                 {
-                    Row = defaultRow,
                     ColumnId = col.Id,
-                    Value = ""
-                };
-                defaultRow.Cells.Add(cell);
+                    Value = "" 
+                });
             }
 
-            grid.Rows.Add(defaultRow);
+            _context.Rows.Add(defaultRow);
 
             try
             {
@@ -148,12 +137,18 @@ namespace CentTable.Controllers
             }
             catch (System.Exception ex)
             {
-                var inner = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-                return StatusCode(500, "Ошибка при сохранении строки и ячеек: " + inner);
+                return StatusCode(500, "Ошибка при сохранении строки: " + ex.Message);
             }
 
-            return Ok(grid);
+            var loadedGrid = await _context.DataGrids
+                                   .Include(g => g.Columns)
+                                   .Include(g => g.Rows)
+                                       .ThenInclude(r => r.Cells)
+                                   .FirstOrDefaultAsync(g => g.Id == grid.Id);
+
+            return Ok(loadedGrid);
         }
+
 
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateDataGrid(int id, [FromBody] UpdateDataGridModel model)

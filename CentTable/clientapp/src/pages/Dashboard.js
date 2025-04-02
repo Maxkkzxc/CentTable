@@ -74,7 +74,15 @@ function Dashboard() {
     const [newGridName, setNewGridName] = useState('');
     const [newGridIsPublic, setNewGridIsPublic] = useState(true);
     const [createColumns, setCreateColumns] = useState([
-        { name: '', type: 'String', validationRegex: '', options: '' }
+        {
+            name: '',
+            type: 'String',
+            validationRegex: '',
+            options: '',
+            maxLength: '',
+            minValue: '',
+            maxValue: ''
+        }
     ]);
 
     const [openEdit, setOpenEdit] = useState(false);
@@ -92,11 +100,9 @@ function Dashboard() {
 
     const [selectedRows, setSelectedRows] = useState({});
     const [clipboard, setClipboard] = useState({ rows: null, sourceGridId: null });
-
     const [selectedGridId, setSelectedGridId] = useState(null);
 
     const columnWidth = 150;
-
     const isAdmin = userInfo.role === 'Admin';
 
     useEffect(() => {
@@ -153,11 +159,13 @@ function Dashboard() {
     const resetCreateForm = () => {
         setNewGridName('');
         setNewGridIsPublic(true);
-        setCreateColumns([{ name: '', type: 'String', validationRegex: '', options: '' }]);
+        setCreateColumns([
+            { name: '', type: 'String', validationRegex: '', options: '', maxLength: '', minValue: '', maxValue: '' }
+        ]);
     };
 
     const handleAddCreateColumn = () => {
-        setCreateColumns([...createColumns, { name: '', type: 'String', validationRegex: '', options: '' }]);
+        setCreateColumns([...createColumns, { name: '', type: 'String', validationRegex: '', options: '', maxLength: '', minValue: '', maxValue: '' }]);
     };
 
     const handleRemoveCreateColumn = (index) => {
@@ -170,15 +178,24 @@ function Dashboard() {
         setCreateColumns(newCols);
     };
 
+    const formatColumnConstraints = (cols) => {
+        return cols.map(col => ({
+            ...col,
+            maxLength: col.maxLength ? parseInt(col.maxLength, 10) : null,
+            minValue: col.minValue ? parseFloat(col.minValue) : null,
+            maxValue: col.maxValue ? parseFloat(col.maxValue) : null
+        })).filter(col => col.name.trim() !== '');
+    };
+
     const handleCreateGrid = async () => {
         const payload = {
             name: newGridName,
             isPublic: newGridIsPublic,
-            columns: createColumns.filter(c => c.name.trim() !== '')
+            columns: formatColumnConstraints(createColumns)
         };
 
         try {
-            const response = await api.post('datagrid', payload);
+            const response = await api.post('datagrid/create', payload);
             const newGrid = response.data;
             if (!newGrid.rows || newGrid.rows.length === 0) {
                 newGrid.rows = [{
@@ -267,7 +284,10 @@ function Dashboard() {
             name: col.name,
             type: col.type,
             validationRegex: col.validationRegex,
-            options: col.options
+            options: col.options,
+            maxLength: col.maxLength || '',
+            minValue: col.minValue || '',
+            maxValue: col.maxValue || ''
         }));
         setEditColumns(cols);
         setOpenEdit(true);
@@ -282,7 +302,7 @@ function Dashboard() {
     };
 
     const handleAddEditColumn = () => {
-        setEditColumns([...editColumns, { id: 0, name: '', type: 'String', validationRegex: '', options: '' }]);
+        setEditColumns([...editColumns, { id: 0, name: '', type: 'String', validationRegex: '', options: '', maxLength: '', minValue: '', maxValue: '' }]);
     };
 
     const handleRemoveEditColumn = (index) => {
@@ -296,12 +316,7 @@ function Dashboard() {
     };
 
     const handleEditGrid = async () => {
-        const processedColumns = editColumns
-            .filter(c => c.name.trim() !== '')
-            .map(({ id, name, type, validationRegex, options }) => ({
-                id, name, type, validationRegex, options
-            }));
-
+        const processedColumns = formatColumnConstraints(editColumns);
         const payload = {
             name: editGridName,
             isPublic: editGridIsPublic,
@@ -384,7 +399,6 @@ function Dashboard() {
             alert("Нет выбранных строк для копирования");
             return;
         }
-
         const copiedRows = grid.rows.filter(row => rowsToCopy.includes(row.id)).map(row => {
             return {
                 Cells: row.cells.map(cell => {
@@ -397,7 +411,6 @@ function Dashboard() {
                 })
             };
         });
-
         setClipboard({ rows: copiedRows, sourceGridId: grid.id });
         alert("Строки скопированы");
     };
@@ -417,9 +430,8 @@ function Dashboard() {
                 }))
             }))
         };
-
         try {
-            const res = await api.post('datagrid/batch-insert', payload);
+            await api.post('datagrid/batch-insert', payload);
             alert(`Успешная вставка`);
             fetchDataGrids();
             setSelectedRows(prev => ({ ...prev, [grid.id]: [] }));
@@ -484,6 +496,14 @@ function Dashboard() {
                                                 <Typography variant="subtitle2">{col.name}</Typography>
                                                 {(col.type === "SingleSelect" || col.type === "MultiSelect") && (
                                                     <Typography variant="caption">Варианты: {col.options}</Typography>
+                                                )}
+                                                {col.type === "String" && col.maxLength && (
+                                                    <Typography variant="caption">Макс. символов: {col.maxLength}</Typography>
+                                                )}
+                                                {col.type === "Numeric" && (col.minValue || col.maxValue) && (
+                                                    <Typography variant="caption">
+                                                        {col.minValue != null && `Мин: ${col.minValue}`} {col.maxValue != null && `Макс: ${col.maxValue}`}
+                                                    </Typography>
                                                 )}
                                             </th>
                                         ))}
@@ -565,18 +585,69 @@ function Dashboard() {
                                                             editingCell.rowId === row.id &&
                                                             editingCell.columnId === col.id
                                                         ) {
-                                                            cellControl = (
-                                                                <TextField
-                                                                    type={col.type === "Numeric" ? "number" : "text"}
-                                                                    value={editingValue}
-                                                                    onChange={(e) => setEditingValue(e.target.value)}
-                                                                    onBlur={() => handleCellBlur(grid.id, row.id, col.id, editingValue)}
-                                                                    autoFocus
-                                                                    variant="standard"
-                                                                    multiline={col.type !== "Numeric"}
-                                                                    fullWidth
-                                                                />
-                                                            );
+                                                            if (col.type === "Numeric") {
+                                                                let inputProps = {};
+                                                                if (col.minValue != null) inputProps.min = col.minValue;
+                                                                if (col.maxValue != null) inputProps.max = col.maxValue;
+                                                                let step = 1;
+                                                                if (col.minValue != null && col.maxValue != null) {
+                                                                    const range = col.maxValue - col.minValue;
+                                                                    step = range >= 100 ? 10 : 1;
+                                                                }
+                                                                inputProps.step = step;
+
+                                                                cellControl = (
+                                                                    <TextField
+                                                                        type="number"
+                                                                        value={editingValue}
+                                                                        onChange={(e) => setEditingValue(e.target.value)}
+                                                                        onBlur={() => {
+                                                                            let num = parseFloat(editingValue);
+                                                                            if (isNaN(num)) {
+                                                                                num = "";
+                                                                            } else {
+                                                                                if (col.minValue != null && num < col.minValue) {
+                                                                                    num = col.minValue;
+                                                                                }
+                                                                                if (col.maxValue != null && num > col.maxValue) {
+                                                                                    num = col.maxValue;
+                                                                                }
+                                                                            }
+                                                                            const newValue = num.toString();
+                                                                            setEditingValue(newValue);
+                                                                            handleCellBlur(grid.id, row.id, col.id, newValue);
+                                                                        }}
+                                                                        autoFocus
+                                                                        variant="standard"
+                                                                        fullWidth
+                                                                        inputProps={inputProps}
+                                                                    />
+                                                                );
+                                                            } else if (col.type === "String") {
+                                                                cellControl = (
+                                                                    <TextField
+                                                                        type="text"
+                                                                        value={editingValue}
+                                                                        onChange={(e) => setEditingValue(e.target.value)}
+                                                                        onBlur={() => handleCellBlur(grid.id, row.id, col.id, editingValue)}
+                                                                        autoFocus
+                                                                        variant="standard"
+                                                                        fullWidth
+                                                                    />
+                                                                );
+                                                            } else {
+                                                                cellControl = (
+                                                                    <TextField
+                                                                        type="text"
+                                                                        value={editingValue}
+                                                                        onChange={(e) => setEditingValue(e.target.value)}
+                                                                        onBlur={() => handleCellBlur(grid.id, row.id, col.id, editingValue)}
+                                                                        autoFocus
+                                                                        variant="standard"
+                                                                        fullWidth
+                                                                    />
+                                                                );
+                                                            }
                                                         } else {
                                                             cellControl = (
                                                                 <Typography
@@ -725,7 +796,19 @@ function Dashboard() {
                         Колонки
                     </Typography>
                     {createColumns.map((col, index) => (
-                        <Box key={index} sx={{ mb: 1, display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                        <Box
+                            key={index}
+                            sx={{
+                                mb: 1,
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 1,
+                                alignItems: 'center',
+                                border: '1px solid #ccc',
+                                padding: '8px',
+                                borderRadius: '4px',
+                            }}
+                        >
                             <TextField
                                 label="Название"
                                 value={col.name}
@@ -736,8 +819,6 @@ function Dashboard() {
                                     '& .MuiOutlinedInput-root': {
                                         backgroundColor: 'rgb(48, 48, 48)',
                                         color: 'white',
-                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                        '&:hover fieldset': { borderColor: '#1976d2' },
                                     },
                                 }}
                             />
@@ -753,12 +834,10 @@ function Dashboard() {
                                     '& .MuiOutlinedInput-root': {
                                         backgroundColor: 'rgb(48, 48, 48)',
                                         color: 'white',
-                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                        '&:hover fieldset': { borderColor: '#1976d2' },
                                     },
                                 }}
                             >
-                                {columnTypeOptions.map(option => (
+                                {columnTypeOptions.map((option) => (
                                     <MenuItem key={option.value} value={option.value}>
                                         {option.label}
                                     </MenuItem>
@@ -775,8 +854,6 @@ function Dashboard() {
                                         '& .MuiOutlinedInput-root': {
                                             backgroundColor: 'rgb(48, 48, 48)',
                                             color: 'white',
-                                            '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                            '&:hover fieldset': { borderColor: '#1976d2' },
                                         },
                                     }}
                                 />
@@ -792,11 +869,39 @@ function Dashboard() {
                                         '& .MuiOutlinedInput-root': {
                                             backgroundColor: 'rgb(48, 48, 48)',
                                             color: 'white',
-                                            '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                            '&:hover fieldset': { borderColor: '#1976d2' },
                                         },
                                     }}
                                 />
+                            )}
+                            {col.type === 'String' && (
+                                <TextField
+                                    label="Макс. кол-во символов"
+                                    type="number"
+                                    value={col.maxLength}
+                                    onChange={(e) => handleCreateColumnChange(index, 'maxLength', e.target.value)}
+                                    variant="outlined"
+                                    size="small"
+                                />
+                            )}
+                            {col.type === 'Numeric' && (
+                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                    <TextField
+                                        label="Мин. значение"
+                                        type="number"
+                                        value={col.minValue}
+                                        onChange={(e) => handleCreateColumnChange(index, 'minValue', e.target.value)}
+                                        variant="outlined"
+                                        size="small"
+                                    />
+                                    <TextField
+                                        label="Макс. значение"
+                                        type="number"
+                                        value={col.maxValue}
+                                        onChange={(e) => handleCreateColumnChange(index, 'maxValue', e.target.value)}
+                                        variant="outlined"
+                                        size="small"
+                                    />
+                                </Box>
                             )}
                             <IconButton onClick={() => handleRemoveCreateColumn(index)}>
                                 <DeleteIcon sx={{ color: 'white' }} />
@@ -812,7 +917,7 @@ function Dashboard() {
                         Отмена
                     </Button>
                     <Button onClick={handleCreateGrid} color="primary">
-                        Создать
+                        Создать таблицу
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -836,8 +941,6 @@ function Dashboard() {
                             '& .MuiOutlinedInput-root': {
                                 backgroundColor: 'rgb(48, 48, 48)',
                                 color: 'white',
-                                '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                '&:hover fieldset': { borderColor: '#1976d2' },
                             },
                         }}
                     />
@@ -856,7 +959,19 @@ function Dashboard() {
                         Колонки
                     </Typography>
                     {editColumns.map((col, index) => (
-                        <Box key={index} sx={{ mb: 1, display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                        <Box
+                            key={index}
+                            sx={{
+                                mb: 1,
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 1,
+                                alignItems: 'center',
+                                border: '1px solid #ccc',
+                                padding: '8px',
+                                borderRadius: '4px',
+                            }}
+                        >
                             <TextField
                                 label="Название"
                                 value={col.name}
@@ -867,8 +982,6 @@ function Dashboard() {
                                     '& .MuiOutlinedInput-root': {
                                         backgroundColor: 'rgb(48, 48, 48)',
                                         color: 'white',
-                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                        '&:hover fieldset': { borderColor: '#1976d2' },
                                     },
                                 }}
                             />
@@ -884,12 +997,10 @@ function Dashboard() {
                                     '& .MuiOutlinedInput-root': {
                                         backgroundColor: 'rgb(48, 48, 48)',
                                         color: 'white',
-                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                        '&:hover fieldset': { borderColor: '#1976d2' },
                                     },
                                 }}
                             >
-                                {columnTypeOptions.map(option => (
+                                {columnTypeOptions.map((option) => (
                                     <MenuItem key={option.value} value={option.value}>
                                         {option.label}
                                     </MenuItem>
@@ -906,8 +1017,6 @@ function Dashboard() {
                                         '& .MuiOutlinedInput-root': {
                                             backgroundColor: 'rgb(48, 48, 48)',
                                             color: 'white',
-                                            '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                            '&:hover fieldset': { borderColor: '#1976d2' },
                                         },
                                     }}
                                 />
@@ -923,11 +1032,39 @@ function Dashboard() {
                                         '& .MuiOutlinedInput-root': {
                                             backgroundColor: 'rgb(48, 48, 48)',
                                             color: 'white',
-                                            '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                            '&:hover fieldset': { borderColor: '#1976d2' },
                                         },
                                     }}
                                 />
+                            )}
+                            {col.type === 'String' && (
+                                <TextField
+                                    label="Макс. кол-во символов"
+                                    type="number"
+                                    value={col.maxLength}
+                                    onChange={(e) => handleEditColumnChange(index, 'maxLength', e.target.value)}
+                                    variant="outlined"
+                                    size="small"
+                                />
+                            )}
+                            {col.type === 'Numeric' && (
+                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                    <TextField
+                                        label="Мин. значение"
+                                        type="number"
+                                        value={col.minValue}
+                                        onChange={(e) => handleEditColumnChange(index, 'minValue', e.target.value)}
+                                        variant="outlined"
+                                        size="small"
+                                    />
+                                    <TextField
+                                        label="Макс. значение"
+                                        type="number"
+                                        value={col.maxValue}
+                                        onChange={(e) => handleEditColumnChange(index, 'maxValue', e.target.value)}
+                                        variant="outlined"
+                                        size="small"
+                                    />
+                                </Box>
                             )}
                             <IconButton onClick={() => handleRemoveEditColumn(index)}>
                                 <DeleteIcon sx={{ color: 'white' }} />
