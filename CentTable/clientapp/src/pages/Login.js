@@ -55,6 +55,7 @@ function Login() {
                 {error && <Typography color="error">{error}</Typography>}
                 <Button
                     type="submit"
+                    data-testid="login-submit"
                     variant="contained"
                     color="primary"
                     fullWidth

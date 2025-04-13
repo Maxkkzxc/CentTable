@@ -18,6 +18,9 @@ namespace CentTable.ViewModels
         public ColumnType Type { get; set; }
         public string ValidationRegex { get; set; }
         public string Options { get; set; }
+        public int? MaxLength { get; set; }
+        public double? MinValue { get; set; }
+        public double? MaxValue { get; set; }
     }
 
     public class UpdateRowModel

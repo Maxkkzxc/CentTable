@@ -1,12 +1,9 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+﻿using CentTable.Interfaces;
 using CentTable.Models;
-using CentTable.ViewModels;
 using CentTable.Services;
+using CentTable.ViewModels;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 
 namespace CentTable.Controllers
 {
@@ -16,11 +13,11 @@ namespace CentTable.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
-        private readonly JwtTokenGenerator _jwtTokenGenerator;
+        private readonly IJwtTokenGenerator _jwtTokenGenerator;
 
         public AccountController(UserManager<ApplicationUser> userManager,
                                  SignInManager<ApplicationUser> signInManager,
-                                 JwtTokenGenerator jwtTokenGenerator)
+                                 IJwtTokenGenerator jwtTokenGenerator)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -30,8 +27,6 @@ namespace CentTable.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
         {
-            Console.WriteLine("Register endpoint called");
-
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -57,8 +52,6 @@ namespace CentTable.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginViewModel model)
         {
-            Console.WriteLine("Login endpoint called");
-
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 

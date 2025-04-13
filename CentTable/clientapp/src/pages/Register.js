@@ -4,7 +4,8 @@ import {
     Button,
     Grid,
     Typography,
-    CircularProgress
+    CircularProgress,
+    Box,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +15,9 @@ import Cookies from 'js-cookie';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 
 const CustomTextField = styled(TextField)(({ theme }) => ({
     '& .MuiOutlinedInput-root': {
@@ -36,8 +40,16 @@ const StyledDatePicker = styled(DatePicker)(({ theme }) => ({
         },
     },
     marginBottom: theme.spacing(2),
-    width: '100%', 
+    width: '100%',
 }));
+
+const passwordCriteria = [
+    { label: 'Не менее 8 символов', test: (password) => password.length >= 8 },
+    { label: 'Наличие строчных букв', test: (password) => /[a-z]/.test(password) },
+    { label: 'Наличие прописных букв', test: (password) => /[A-Z]/.test(password) },
+    { label: 'Наличие цифры', test: (password) => /[0-9]/.test(password) },
+    { label: 'Наличие спецсимвола', test: (password) => /[^A-Za-z0-9]/.test(password) },
+];
 
 function Register() {
     const [username, setUsername] = useState('');
@@ -82,7 +94,7 @@ function Register() {
 
     return (
         <Grid container justifyContent="center" alignItems="center" style={{ height: '100vh' }}>
-            <form onSubmit={handleRegister} style={{ width: '300px' }}>
+            <form onSubmit={handleRegister} style={{ width: '300px', position: 'relative' }}>
                 <Typography variant="h4" align="center" gutterBottom>
                     Регистрация
                 </Typography>
@@ -134,14 +146,49 @@ function Register() {
                     />
                 </LocalizationProvider>
 
-                <CustomTextField
-                    label="Пароль"
-                    type="password"
-                    variant="outlined"
-                    fullWidth
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
+                <Box position="relative">
+                    <CustomTextField
+                        label="Пароль"
+                        type="password"
+                        variant="outlined"
+                        fullWidth
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+
+                    {password && (
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 'calc(100% + 8px)',
+                                width: '200px',
+                                background: '#1d1d1d',         
+                                border: '1px solid #424242',    
+                                padding: '8px',
+                                borderRadius: '4px',
+                                boxShadow: '0px 0px 5px rgba(0,0,0,0.5)',
+                            }}
+                        >
+                            {passwordCriteria.map((criterion, index) => {
+                                const isValid = criterion.test(password);
+                                return (
+                                    <Box key={index} display="flex" alignItems="center" mb={0.5}>
+                                        {isValid ? (
+                                            <CheckCircleIcon fontSize="small" style={{ color: '#388e3c', marginRight: 4 }} />
+                                        ) : (
+                                            <CancelIcon fontSize="small" style={{ color: '#d32f2f', marginRight: 4 }} />
+                                        )}
+                                        <Typography variant="body2" style={{ color: isValid ? '#388e3c' : '#d32f2f' }}>
+                                            {criterion.label}
+                                        </Typography>
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                    )}
+                </Box>
+
                 <CustomTextField
                     label="Повторите пароль"
                     type="password"
@@ -150,9 +197,11 @@ function Register() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                 />
+
                 {error && <Typography color="error">{error}</Typography>}
                 <Button
                     type="submit"
+                    data-testid="register-submit"
                     variant="contained"
                     color="primary"
                     fullWidth

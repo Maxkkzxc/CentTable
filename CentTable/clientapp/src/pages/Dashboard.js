@@ -37,6 +37,9 @@ import api from '../services/axiosInstance';
 import Cookies from 'js-cookie';
 import PermissionDialog from '../components/PermissionDialog';
 import ExternalCell from '../components/ExternalCell';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import Swal from 'sweetalert2';
 
 function parseJwt(token) {
     try {
@@ -94,7 +97,7 @@ function Dashboard() {
     const [editingCell, setEditingCell] = useState(null);
     const [editingValue, setEditingValue] = useState("");
 
-    const [userInfo, setUserInfo] = useState({ login: '', role: '' });
+    const [userInfo, setUserInfo] = useState({ login: '', role: '', id: '' });
     const [openPermissionDialog, setOpenPermissionDialog] = useState(false);
     const [selectedGridForPermission, setSelectedGridForPermission] = useState(null);
 
@@ -105,6 +108,17 @@ function Dashboard() {
     const columnWidth = 150;
     const isAdmin = userInfo.role === 'Admin';
 
+    const getGridPermissions = (grid) => {
+        if (grid.isPublic) {
+            return { canView: true, canEdit: true, canDelete: true };
+        }
+        if (isAdmin) {
+            return { canView: true, canEdit: true, canDelete: true };
+        }
+        const permission = grid.permissions?.find(p => p.userId === userInfo.id);
+        return permission || { canView: false, canEdit: false, canDelete: false };
+    };
+
     useEffect(() => {
         const token = Cookies.get('token');
         if (token) {
@@ -112,7 +126,8 @@ function Dashboard() {
             if (decoded) {
                 setUserInfo({
                     login: decoded.unique_name || 'Неизвестно',
-                    role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || 'Пользователь'
+                    role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || 'Пользователь',
+                    id: decoded.nameid || decoded.sub || ''
                 });
             }
         }
@@ -136,6 +151,7 @@ function Dashboard() {
             setDataGrids(response.data);
         } catch (err) {
             console.error('Ошибка при получении таблиц:', err);
+            toast.error("Ошибка при получении таблиц");
         } finally {
             setLoading(false);
         }
@@ -145,6 +161,103 @@ function Dashboard() {
         Cookies.remove('token');
         navigate('/login', { replace: true });
         window.location.reload();
+    };
+
+    const validateCellValue = (column, value) => {
+        if (column.type === "RegExp" && column.validationRegex) {
+            try {
+                const regex = new RegExp(column.validationRegex);
+                if (!regex.test(value)) {
+                    toast.error("Значение не соответствует выражению");
+                    return false;
+                }
+            } catch (error) {
+                toast.error("Ошибка в регулярном выражении колонки");
+                return false;
+            }
+        }
+
+        if (column.type === "Email") {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value)) {
+                toast.error("Некорректный email");
+                return false;
+            }
+        }
+        return true;
+    };
+
+    const handleCellClick = (gridId, rowId, columnId, currentValue) => {
+        const grid = dataGrids.find(g => g.id === gridId);
+        if (!grid) return;
+        const { canEdit } = getGridPermissions(grid);
+        if (!canEdit) {
+            toast.info("У вас нет прав для редактирования этой таблицы");
+            return;
+        }
+        setEditingCell({ gridId, rowId, columnId });
+        setEditingValue(currentValue || "");
+    };
+
+    const handleCellBlur = (gridId, rowId, columnId, newValue) => {
+        const grid = dataGrids.find(g => g.id === gridId);
+        if (!grid) return;
+
+        const col = grid.columns.find(c => c.id === columnId);
+        if (col && !validateCellValue(col, newValue)) {
+            setEditingCell(null);
+            return;
+        }
+
+        setDataGrids(prev =>
+            prev.map(grid => {
+                if (grid.id === gridId) {
+                    const newRows = (grid.rows || []).map(row => {
+                        if (row.id === rowId) {
+                            const newCells = (row.cells || []).map(cell =>
+                                cell.columnId === columnId ? { ...cell, value: newValue } : cell
+                            );
+                            return { ...row, cells: newCells };
+                        }
+                        return row;
+                    });
+                    const updatedGrid = { ...grid, rows: newRows };
+                    updateGrid(updatedGrid);
+                    return updatedGrid;
+                }
+                return grid;
+            })
+        );
+        setEditingCell(null);
+    };
+
+    const handleCellChangeImmediate = (gridId, rowId, columnId, newValue) => {
+        const grid = dataGrids.find(g => g.id === gridId);
+        if (!grid) return;
+        const { canEdit } = getGridPermissions(grid);
+        if (!canEdit) {
+            toast.info("У вас нет прав для редактирования этой таблицы");
+            return;
+        }
+        setDataGrids(prev =>
+            prev.map(grid => {
+                if (grid.id === gridId) {
+                    const newRows = (grid.rows || []).map(row => {
+                        if (row.id === rowId) {
+                            const newCells = (row.cells || []).map(cell =>
+                                cell.columnId === columnId ? { ...cell, value: newValue } : cell
+                            );
+                            return { ...row, cells: newCells };
+                        }
+                        return row;
+                    });
+                    const updatedGrid = { ...grid, rows: newRows };
+                    updateGrid(updatedGrid);
+                    return updatedGrid;
+                }
+                return grid;
+            })
+        );
     };
 
     const handleOpenCreate = () => {
@@ -181,9 +294,9 @@ function Dashboard() {
     const formatColumnConstraints = (cols) => {
         return cols.map(col => ({
             ...col,
-            maxLength: col.maxLength ? parseInt(col.maxLength, 10) : null,
-            minValue: col.minValue ? parseFloat(col.minValue) : null,
-            maxValue: col.maxValue ? parseFloat(col.maxValue) : null
+            maxLength: col.maxLength !== '' ? parseInt(col.maxLength, 10) : null,
+            minValue: col.minValue !== '' ? parseFloat(col.minValue) : null,
+            maxValue: col.maxValue !== '' ? parseFloat(col.maxValue) : null
         })).filter(col => col.name.trim() !== '');
     };
 
@@ -211,7 +324,7 @@ function Dashboard() {
             handleCloseCreate();
         } catch (err) {
             console.error("Ошибка при создании таблицы:", err.response ? err.response.data : err.message);
-            alert("Ошибка при создании таблицы");
+            toast.error("Ошибка при создании таблицы");
         }
     };
 
@@ -221,61 +334,15 @@ function Dashboard() {
             setDataGrids(prev => prev.map(g => g.id === updatedGrid.id ? response.data : g));
         } catch (err) {
             console.error("Ошибка при обновлении таблицы:", err.response ? err.response.data : err.message);
-            alert("Ошибка при обновлении таблицы");
+            toast.error("Ошибка при обновлении таблицы");
         }
     };
 
-    const handleCellClick = (gridId, rowId, columnId, currentValue) => {
-        setEditingCell({ gridId, rowId, columnId });
-        setEditingValue(currentValue || "");
-    };
-
-    const handleCellBlur = (gridId, rowId, columnId, newValue) => {
-        setDataGrids(prev =>
-            prev.map(grid => {
-                if (grid.id === gridId) {
-                    const newRows = (grid.rows || []).map(row => {
-                        if (row.id === rowId) {
-                            const newCells = (row.cells || []).map(cell =>
-                                cell.columnId === columnId ? { ...cell, value: newValue } : cell
-                            );
-                            return { ...row, cells: newCells };
-                        }
-                        return row;
-                    });
-                    const updatedGrid = { ...grid, rows: newRows };
-                    updateGrid(updatedGrid);
-                    return updatedGrid;
-                }
-                return grid;
-            })
-        );
-        setEditingCell(null);
-    };
-
-    const handleCellChangeImmediate = (gridId, rowId, columnId, newValue) => {
-        setDataGrids(prev =>
-            prev.map(grid => {
-                if (grid.id === gridId) {
-                    const newRows = (grid.rows || []).map(row => {
-                        if (row.id === rowId) {
-                            const newCells = (row.cells || []).map(cell =>
-                                cell.columnId === columnId ? { ...cell, value: newValue } : cell
-                            );
-                            return { ...row, cells: newCells };
-                        }
-                        return row;
-                    });
-                    const updatedGrid = { ...grid, rows: newRows };
-                    updateGrid(updatedGrid);
-                    return updatedGrid;
-                }
-                return grid;
-            })
-        );
-    };
-
     const handleOpenEdit = (grid) => {
+        if (!getGridPermissions(grid).canEdit) {
+            toast.info("У вас нет прав для редактирования этой таблицы");
+            return;
+        }
         setEditingGrid(grid);
         setEditGridName(grid.name);
         setEditGridIsPublic(grid.isPublic);
@@ -283,11 +350,11 @@ function Dashboard() {
             id: col.id,
             name: col.name,
             type: col.type,
-            validationRegex: col.validationRegex,
-            options: col.options,
-            maxLength: col.maxLength || '',
-            minValue: col.minValue || '',
-            maxValue: col.maxValue || ''
+            validationRegex: col.validationRegex || '',
+            options: col.options || '',
+            maxLength: col.maxLength != null ? col.maxLength : '',
+            minValue: col.minValue != null ? col.minValue : '',
+            maxValue: col.maxValue != null ? col.maxValue : ''
         }));
         setEditColumns(cols);
         setOpenEdit(true);
@@ -310,9 +377,11 @@ function Dashboard() {
     };
 
     const handleEditColumnChange = (index, field, value) => {
-        const newCols = [...editColumns];
-        newCols[index][field] = value;
-        setEditColumns(newCols);
+        setEditColumns(prevColumns => {
+            const newColumns = [...prevColumns];
+            newColumns[index] = { ...newColumns[index], [field]: value };
+            return newColumns;
+        });
     };
 
     const handleEditGrid = async () => {
@@ -323,14 +392,15 @@ function Dashboard() {
             columns: processedColumns,
             rows: editingGrid.rows
         };
-
+        console.log('Отправляем payload:', payload);
         try {
             const response = await api.put(`datagrid/${editingGrid.id}`, payload);
+            console.log('Ответ сервера:', response.data);
             setDataGrids(prev => prev.map(g => g.id === editingGrid.id ? response.data : g));
             handleCloseEdit();
         } catch (err) {
             console.error("Ошибка при обновлении таблицы:", err.response ? err.response.data : err.message);
-            alert("Ошибка при обновлении таблицы");
+            toast.error("Ошибка при обновлении таблицы");
         }
     };
 
@@ -347,16 +417,37 @@ function Dashboard() {
     };
 
     const handleDeleteGrid = async (gridId) => {
-        if (window.confirm("Вы уверены, что хотите удалить таблицу?")) {
+        const result = await Swal.fire({
+            title: 'Подтверждение',
+            text: 'Вы уверены, что хотите удалить таблицу?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Да, удалить!',
+            cancelButtonText: 'Отмена',
+            theme: 'dark'
+        });
+
+        if (result && result.isConfirmed) {
             try {
                 await api.delete(`datagrid/${gridId}`);
                 setDataGrids(prev => prev.filter(g => g.id !== gridId));
                 if (selectedGridId === gridId) {
                     setSelectedGridId(null);
                 }
+                Swal.fire({
+                    title: 'Удалено!',
+                    text: 'Таблица была успешно удалена',
+                    icon: 'success',
+                    theme: 'dark'
+                });
             } catch (err) {
                 console.error("Ошибка при удалении таблицы:", err.response ? err.response.data : err.message);
-                alert("Ошибка при удалении таблицы");
+                Swal.fire({
+                    title: 'Ошибка!',
+                    text: 'Ошибка при удалении таблицы',
+                    icon: 'error',
+                    theme: 'dark'
+                });
             }
         }
     };
@@ -380,7 +471,7 @@ function Dashboard() {
     const handleBatchDelete = async (gridId) => {
         const rowsToDelete = selectedRows[gridId];
         if (!rowsToDelete || rowsToDelete.length === 0) {
-            alert("Нет выбранных строк для удаления");
+            toast.info("Нет выбранных строк для удаления");
             return;
         }
         try {
@@ -389,14 +480,14 @@ function Dashboard() {
             setSelectedRows(prev => ({ ...prev, [gridId]: [] }));
         } catch (err) {
             console.error("Ошибка пакетного удаления:", err);
-            alert("Ошибка пакетного удаления");
+            toast.error("Ошибка пакетного удаления");
         }
     };
 
     const handleCopySelected = (grid) => {
         const rowsToCopy = selectedRows[grid.id];
         if (!rowsToCopy || rowsToCopy.length === 0) {
-            alert("Нет выбранных строк для копирования");
+            toast.info("Нет выбранных строк для копирования");
             return;
         }
         const copiedRows = grid.rows.filter(row => rowsToCopy.includes(row.id)).map(row => {
@@ -412,12 +503,12 @@ function Dashboard() {
             };
         });
         setClipboard({ rows: copiedRows, sourceGridId: grid.id });
-        alert("Строки скопированы");
+        toast.info("Строки скопированы");
     };
 
     const handlePasteCopied = async (grid) => {
         if (!clipboard.rows || clipboard.rows.length === 0) {
-            alert("Буфер пуст. Сначала скопируйте строки.");
+            toast.info("Буфер пуст. Сначала скопируйте строки.");
             return;
         }
         const payload = {
@@ -432,54 +523,97 @@ function Dashboard() {
         };
         try {
             await api.post('datagrid/batch-insert', payload);
-            alert(`Успешная вставка`);
+            toast.info("Успешная вставка");
             fetchDataGrids();
             setSelectedRows(prev => ({ ...prev, [grid.id]: [] }));
             setClipboard({ rows: null, sourceGridId: null });
         } catch (err) {
             console.error("Ошибка при вставке скопированных строк:", err);
-            alert("Ошибка при вставке строк");
+            toast.error("Ошибка при вставке строк");
         }
     };
 
     const renderGridCard = (grid, columnWidth) => {
+        const { canEdit } = getGridPermissions(grid);
         return (
             <Card key={grid.id} variant="outlined" sx={{ mb: 2, p: 1 }}>
                 <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="h6">{grid.name}</Typography>
                         <Box>
-                            <Button variant="outlined" size="small" onClick={() => handleAddRecord(grid)} sx={{ mr: 1 }}>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => handleAddRecord(grid)}
+                                sx={{ mr: 1 }}
+                            >
                                 Добавить запись
                             </Button>
-                            <Button variant="outlined" size="small" onClick={() => handleOpenEdit(grid)} sx={{ mr: 1 }}>
-                                Редактировать
-                            </Button>
+                            {canEdit ? (
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => handleOpenEdit(grid)}
+                                    sx={{ mr: 1 }}
+                                >
+                                    Редактировать
+                                </Button>
+                            ) : (
+                                <Button variant="outlined" size="small" disabled sx={{ mr: 1 }}>
+                                    Только просмотр
+                                </Button>
+                            )}
                             {isAdmin && (
-                                <Button variant="outlined" size="small" onClick={() => handleOpenPermissionDialog(grid)} sx={{ mr: 1 }}>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => handleOpenPermissionDialog(grid)}
+                                    sx={{ mr: 1 }}
+                                >
                                     Управление правами
                                 </Button>
                             )}
-                            <IconButton onClick={() => handleDeleteGrid(grid.id)}>
+                            <IconButton
+                                data-testid="delete-grid-button"
+                                aria-label="delete-grid"
+                                onClick={() => handleDeleteGrid(grid.id)}
+                            >
                                 <DeleteIcon color="error" />
                             </IconButton>
                         </Box>
                     </Box>
                     <Box sx={{ mb: 1, display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <Tooltip title="Удалить выбранные строки">
-                            <IconButton color="secondary" onClick={() => handleBatchDelete(grid.id)}>
-                                <DeleteIcon />
-                            </IconButton>
+                        <Tooltip title={canEdit ? "Удалить выбранные строки" : "Нет прав на пакетное удаление"}>
+                            <span>
+                                <IconButton
+                                    color="secondary"
+                                    onClick={() => handleBatchDelete(grid.id)}
+                                    disabled={!canEdit}
+                                >
+                                    <DeleteIcon />
+                                </IconButton>
+                            </span>
                         </Tooltip>
                         <Tooltip title="Копировать выбранные строки">
-                            <IconButton color="primary" onClick={() => handleCopySelected(grid)}>
+                            <IconButton
+                                data-testid="copy-button"
+                                color="primary"
+                                onClick={() => handleCopySelected(grid)}
+                            >
                                 <FileCopyIcon />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="Вставить скопированные строки">
-                            <IconButton color="success" onClick={() => handlePasteCopied(grid)}>
-                                <ContentPasteIcon />
-                            </IconButton>
+                        <Tooltip title={canEdit ? "Вставить скопированные строки" : "Нет прав на пакетное вставление"}>
+                            <span>
+                                <IconButton
+                                    data-testid="paste-button"
+                                    color="success"
+                                    onClick={() => handlePasteCopied(grid)}
+                                    disabled={!canEdit}
+                                >
+                                    <ContentPasteIcon />
+                                </IconButton>
+                            </span>
                         </Tooltip>
                     </Box>
                     <Typography variant="body2">
@@ -515,6 +649,8 @@ function Dashboard() {
                                             <tr key={row.id}>
                                                 <td style={{ border: '1px solid #ccc', padding: '4px', textAlign: 'center' }}>
                                                     <Checkbox
+                                                        data-testid={`row-checkbox-${row.id}`}
+                                                        aria-label={`checkbox for row ${row.id}`}
                                                         checked={selectedRows[grid.id]?.includes(row.id) || false}
                                                         onChange={(e) => handleRowSelection(grid.id, row.id, e.target.checked)}
                                                     />
@@ -528,9 +664,8 @@ function Dashboard() {
                                                                 cell={cell}
                                                                 currentGridId={grid.id}
                                                                 currentRowId={row.id}
-                                                                onUpdate={(newValue) =>
-                                                                    handleCellChangeImmediate(grid.id, row.id, col.id, newValue)
-                                                                }
+                                                                onUpdate={(newValue) => handleCellChangeImmediate(grid.id, row.id, col.id, newValue)}
+                                                                canEdit={getGridPermissions(grid).canEdit}
                                                             />
                                                         );
                                                     } else if (col.type === "SingleSelect") {
@@ -633,6 +768,7 @@ function Dashboard() {
                                                                         autoFocus
                                                                         variant="standard"
                                                                         fullWidth
+                                                                        inputProps={col.maxLength ? { maxLength: col.maxLength } : {}}
                                                                     />
                                                                 );
                                                             } else {
@@ -652,10 +788,8 @@ function Dashboard() {
                                                             cellControl = (
                                                                 <Typography
                                                                     variant="body2"
-                                                                    onDoubleClick={() =>
-                                                                        handleCellClick(grid.id, row.id, col.id, cell.value)
-                                                                    }
-                                                                    style={{ cursor: "pointer", whiteSpace: "pre-wrap", minHeight: "24px" }}
+                                                                    onDoubleClick={() => getGridPermissions(grid).canEdit && handleCellClick(grid.id, row.id, col.id, cell.value)}
+                                                                    style={{ cursor: getGridPermissions(grid).canEdit ? "pointer" : "default", whiteSpace: "pre-wrap", minHeight: "24px" }}
                                                                 >
                                                                     {cell.value || "\u00A0"}
                                                                 </Typography>
@@ -716,15 +850,20 @@ function Dashboard() {
                         }}
                     >
                         <Box sx={{ p: 1 }}>
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                startIcon={<AddIcon />}
-                                onClick={handleOpenCreate}
-                                fullWidth
-                            >
-                                Создать
-                            </Button>
+                            <Tooltip title={!isAdmin ? "Только администратор может создавать таблицы" : ""}>
+                                <span>
+                                    <Button
+                                        variant="contained"
+                                        color="primary"
+                                        startIcon={<AddIcon />}
+                                        onClick={handleOpenCreate}
+                                        fullWidth
+                                        disabled={!isAdmin}
+                                    >
+                                        Создать
+                                    </Button>
+                                </span>
+                            </Tooltip>
                         </Box>
                         <Divider />
                         {loading ? (
@@ -732,7 +871,7 @@ function Dashboard() {
                         ) : (
                             <List>
                                 {dataGrids.map(grid => (
-                                    <ListItem key={grid.id} disablePadding>
+                                    <ListItem disablePadding key={grid.id}>
                                         <ListItemButton
                                             selected={grid.id === selectedGridId}
                                             onClick={() => setSelectedGridId(grid.id)}
@@ -877,7 +1016,7 @@ function Dashboard() {
                                 <TextField
                                     label="Макс. кол-во символов"
                                     type="number"
-                                    value={col.maxLength}
+                                    value={col.maxLength ?? ''}
                                     onChange={(e) => handleCreateColumnChange(index, 'maxLength', e.target.value)}
                                     variant="outlined"
                                     size="small"
@@ -888,7 +1027,7 @@ function Dashboard() {
                                     <TextField
                                         label="Мин. значение"
                                         type="number"
-                                        value={col.minValue}
+                                        value={col.minValue ?? ''}
                                         onChange={(e) => handleCreateColumnChange(index, 'minValue', e.target.value)}
                                         variant="outlined"
                                         size="small"
@@ -896,7 +1035,7 @@ function Dashboard() {
                                     <TextField
                                         label="Макс. значение"
                                         type="number"
-                                        value={col.maxValue}
+                                        value={col.maxValue ?? ''}
                                         onChange={(e) => handleCreateColumnChange(index, 'maxValue', e.target.value)}
                                         variant="outlined"
                                         size="small"
@@ -1040,7 +1179,7 @@ function Dashboard() {
                                 <TextField
                                     label="Макс. кол-во символов"
                                     type="number"
-                                    value={col.maxLength}
+                                    value={col.maxLength ?? ''}
                                     onChange={(e) => handleEditColumnChange(index, 'maxLength', e.target.value)}
                                     variant="outlined"
                                     size="small"
@@ -1051,7 +1190,7 @@ function Dashboard() {
                                     <TextField
                                         label="Мин. значение"
                                         type="number"
-                                        value={col.minValue}
+                                        value={col.minValue ?? ''}
                                         onChange={(e) => handleEditColumnChange(index, 'minValue', e.target.value)}
                                         variant="outlined"
                                         size="small"
@@ -1059,7 +1198,7 @@ function Dashboard() {
                                     <TextField
                                         label="Макс. значение"
                                         type="number"
-                                        value={col.maxValue}
+                                        value={col.maxValue ?? ''}
                                         onChange={(e) => handleEditColumnChange(index, 'maxValue', e.target.value)}
                                         variant="outlined"
                                         size="small"
@@ -1093,6 +1232,7 @@ function Dashboard() {
                     onPermissionsUpdated={fetchDataGrids}
                 />
             )}
+            <ToastContainer position="top-center" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="dark" />
         </>
     );
 }

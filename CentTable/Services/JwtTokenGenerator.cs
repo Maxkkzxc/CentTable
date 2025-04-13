@@ -1,6 +1,7 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using CentTable.Interfaces;
 using CentTable.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -8,7 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace CentTable.Services
 {
-    public class JwtTokenGenerator
+    public class JwtTokenGenerator : IJwtTokenGenerator
     {
         private readonly IConfiguration _configuration;
         private readonly UserManager<ApplicationUser> _userManager;

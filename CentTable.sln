@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.12.35707.178 d17.12
+VisualStudioVersion = 17.12.35707.178
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CentTable", "CentTable\CentTable.csproj", "{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CentTable.Tests", "CentTable.Tests\CentTable.Tests.csproj", "{BE88D50F-923A-40BF-BBD2-F392FAF5D7B5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7A0D93B8-B8C1-4984-B5FD-16DF6BA061DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE88D50F-923A-40BF-BBD2-F392FAF5D7B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE88D50F-923A-40BF-BBD2-F392FAF5D7B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE88D50F-923A-40BF-BBD2-F392FAF5D7B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE88D50F-923A-40BF-BBD2-F392FAF5D7B5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using CentTable.Enums;
 using System.Reflection;
 using System.Linq.Dynamic.Core;
+using System.Collections.Generic;
 
 namespace CentTable.Controllers
 {
@@ -28,6 +29,27 @@ namespace CentTable.Controllers
             _context = context;
             _userManager = userManager;
         }
+       
+        private bool HasPermission(DataGrid grid, string userId, string operation)
+        {
+            if (User.IsInRole("Admin"))
+                return true;
+
+            if (grid.IsPublic)
+                return true;
+
+            var permission = grid.Permissions.FirstOrDefault(p => p.UserId == userId);
+            if (permission == null)
+                return false;
+
+            return operation.ToLower() switch
+            {
+                "view" => permission.CanView,
+                "edit" => permission.CanEdit,
+                "delete" => permission.CanDelete,
+                _ => false,
+            };
+        }
 
         [HttpGet]
         public async Task<IActionResult> GetDataGrids()
@@ -38,8 +60,7 @@ namespace CentTable.Controllers
 
             var query = _context.DataGrids
                 .Include(dg => dg.Columns)
-                .Include(dg => dg.Rows)
-                    .ThenInclude(r => r.Cells)
+                .Include(dg => dg.Rows).ThenInclude(r => r.Cells)
                 .Include(dg => dg.Permissions)
                 .AsQueryable();
 
@@ -56,36 +77,37 @@ namespace CentTable.Controllers
         public async Task<IActionResult> GetDataGrid(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var user = await _userManager.FindByIdAsync(userId);
-            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
 
             var grid = await _context.DataGrids
                 .AsNoTracking()
                 .Include(dg => dg.Columns)
-                .Include(dg => dg.Rows)
-                    .ThenInclude(r => r.Cells)
+                .Include(dg => dg.Rows).ThenInclude(r => r.Cells)
                 .Include(dg => dg.Permissions)
                 .FirstOrDefaultAsync(dg => dg.Id == id);
 
             if (grid == null)
                 return NotFound();
 
-            if (!grid.IsPublic && !isAdmin && !grid.Permissions.Any(p => p.UserId == userId && p.CanView))
-                return Forbid();
-
+            if (!HasPermission(grid, userId, "view"))
+                return Forbid("Нет прав на просмотр этой таблицы.");
 
             return Ok(grid);
         }
-
 
         [HttpPost("create")]
         public async Task<IActionResult> CreateDataGrid([FromBody] CreateDataGridModel model)
         {
             if (model == null)
                 return BadRequest("Модель равна null");
-
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByIdAsync(userId);
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+
+            if (!isAdmin)
+                return Forbid("Недостаточно прав для создания таблицы.");
 
             var grid = new DataGrid
             {
@@ -104,51 +126,27 @@ namespace CentTable.Controllers
             };
 
             _context.DataGrids.Add(grid);
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, "Ошибка при сохранении таблицы: " + ex.Message);
-            }
+            await _context.SaveChangesAsync();
 
             var defaultRow = new Row
             {
                 DataGridId = grid.Id,
-                Cells = new List<Cell>()
-            };
-
-            foreach (var col in grid.Columns)
-            {
-                defaultRow.Cells.Add(new Cell
+                Cells = grid.Columns.Select(col => new Cell
                 {
                     ColumnId = col.Id,
-                    Value = "" 
-                });
-            }
-
+                    Value = ""
+                }).ToList()
+            };
             _context.Rows.Add(defaultRow);
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, "Ошибка при сохранении строки: " + ex.Message);
-            }
+            await _context.SaveChangesAsync();
 
             var loadedGrid = await _context.DataGrids
-                                   .Include(g => g.Columns)
-                                   .Include(g => g.Rows)
-                                       .ThenInclude(r => r.Cells)
-                                   .FirstOrDefaultAsync(g => g.Id == grid.Id);
+                .Include(g => g.Columns)
+                .Include(g => g.Rows).ThenInclude(r => r.Cells)
+                .FirstOrDefaultAsync(g => g.Id == grid.Id);
 
             return Ok(loadedGrid);
         }
-
 
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateDataGrid(int id, [FromBody] UpdateDataGridModel model)
@@ -158,8 +156,7 @@ namespace CentTable.Controllers
 
             var grid = await _context.DataGrids
                 .Include(dg => dg.Columns)
-                .Include(dg => dg.Rows)
-                    .ThenInclude(r => r.Cells)
+                .Include(dg => dg.Rows).ThenInclude(r => r.Cells)
                 .Include(dg => dg.Permissions)
                 .FirstOrDefaultAsync(dg => dg.Id == id);
 
@@ -167,10 +164,9 @@ namespace CentTable.Controllers
                 return NotFound();
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var user = await _userManager.FindByIdAsync(userId);
-            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
-            if (!isAdmin && !grid.Permissions.Any(p => p.UserId == userId && p.CanEdit))
-                return Forbid();
+
+            if (!HasPermission(grid, userId, "edit"))
+                return Forbid("Нет прав для редактирования этой таблицы.");
 
             grid.Name = model.Name;
             grid.IsPublic = model.IsPublic;
@@ -179,7 +175,7 @@ namespace CentTable.Controllers
             var columnsToRemove = grid.Columns.Where(c => !modelColumnIds.Contains(c.Id)).ToList();
             foreach (var col in columnsToRemove)
             {
-                foreach (var row in grid.Rows.ToList())
+                foreach (var row in grid.Rows)
                 {
                     var cellsToRemove = row.Cells.Where(c => c.ColumnId == col.Id).ToList();
                     foreach (var cell in cellsToRemove)
@@ -195,14 +191,14 @@ namespace CentTable.Controllers
             {
                 if (colModel.Id != 0)
                 {
-                    var col = grid.Columns.FirstOrDefault(c => c.Id == colModel.Id);
-                    if (col != null)
-                    {
-                        col.Name = colModel.Name;
-                        col.Type = colModel.Type;
-                        col.ValidationRegex = colModel.ValidationRegex;
-                        col.Options = colModel.Options;
-                    }
+                    var col = grid.Columns.First(c => c.Id == colModel.Id);
+                    col.Name = colModel.Name;
+                    col.Type = colModel.Type;
+                    col.ValidationRegex = colModel.ValidationRegex;
+                    col.Options = colModel.Options;
+                    col.MaxLength = colModel.MaxLength;
+                    col.MinValue = colModel.MinValue;
+                    col.MaxValue = colModel.MaxValue;
                 }
                 else
                 {
@@ -212,6 +208,9 @@ namespace CentTable.Controllers
                         Type = colModel.Type,
                         ValidationRegex = colModel.ValidationRegex,
                         Options = colModel.Options,
+                        MaxLength = colModel.MaxLength,
+                        MinValue = colModel.MinValue,
+                        MaxValue = colModel.MaxValue,
                         DataGrid = grid
                     };
                     grid.Columns.Add(newCol);
@@ -231,31 +230,24 @@ namespace CentTable.Controllers
                     foreach (var cellModel in rowModel.Cells)
                     {
                         var cell = row.Cells.FirstOrDefault(c => c.ColumnId == cellModel.ColumnId);
+                        string value = cellModel.Value is JArray ja
+                            ? string.Join(",", ja.ToObject<List<string>>())
+                            : cellModel.Value?.ToString() ?? "";
+
                         if (cell != null)
                         {
-                            if (cellModel.Value is JArray jArray)
-                            {
-                                var arr = jArray.ToObject<System.Collections.Generic.List<string>>();
-                                cell.Value = string.Join(",", arr);
-                            }
-                            else
-                            {
-                                cell.Value = cellModel.Value?.ToString();
-                            }
+                            cell.Value = value;
                         }
                         else
                         {
-                            string value = cellModel.Value?.ToString() ?? "";
                             row.Cells.Add(new Cell { ColumnId = cellModel.ColumnId, Value = value, Row = row });
                         }
                     }
-                    var existingCellColumnIds = row.Cells.Select(c => c.ColumnId).ToList();
-                    foreach (var col in grid.Columns)
+
+                    var existingColumnIds = row.Cells.Select(c => c.ColumnId).ToList();
+                    foreach (var col in grid.Columns.Where(c => !existingColumnIds.Contains(c.Id)))
                     {
-                        if (!existingCellColumnIds.Contains(col.Id))
-                        {
-                            row.Cells.Add(new Cell { ColumnId = col.Id, Value = "", Row = row });
-                        }
+                        row.Cells.Add(new Cell { ColumnId = col.Id, Value = "", Row = row });
                     }
                 }
                 else
@@ -263,26 +255,17 @@ namespace CentTable.Controllers
                     var newRow = new Row
                     {
                         DataGridId = grid.Id,
-                        Cells = new System.Collections.Generic.List<Cell>()
+                        Cells = rowModel.Cells.Select(cm => new Cell
+                        {
+                            ColumnId = cm.ColumnId,
+                            Value = cm.Value?.ToString() ?? ""
+                        }).ToList()
                     };
-                    foreach (var cellModel in rowModel.Cells)
-                    {
-                        string value = cellModel.Value?.ToString() ?? "";
-                        newRow.Cells.Add(new Cell { ColumnId = cellModel.ColumnId, Value = value, Row = newRow });
-                    }
                     grid.Rows.Add(newRow);
                 }
             }
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, "Ошибка при обновлении таблицы: " + ex.Message);
-            }
-
+            await _context.SaveChangesAsync();
             return Ok(grid);
         }
 
@@ -290,21 +273,18 @@ namespace CentTable.Controllers
         public async Task<IActionResult> DeleteDataGrid(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var user = await _userManager.FindByIdAsync(userId);
-            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
 
             var grid = await _context.DataGrids
                 .Include(dg => dg.Columns)
-                .Include(dg => dg.Rows)
-                    .ThenInclude(r => r.Cells)
+                .Include(dg => dg.Rows).ThenInclude(r => r.Cells)
                 .Include(dg => dg.Permissions)
                 .FirstOrDefaultAsync(dg => dg.Id == id);
 
             if (grid == null)
                 return NotFound();
 
-            if (!isAdmin && !grid.Permissions.Any(p => p.UserId == userId && p.CanDelete))
-                return Forbid();
+            if (!HasPermission(grid, userId, "delete"))
+                return Forbid("Нет прав для удаления этой таблицы.");
 
             _context.DataGrids.Remove(grid);
             await _context.SaveChangesAsync();
@@ -325,10 +305,7 @@ namespace CentTable.Controllers
             if (grid == null)
                 return NotFound();
 
-            if (grid.Permissions.Any())
-            {
-                _context.DataGridPermissions.RemoveRange(grid.Permissions);
-            }
+            _context.DataGridPermissions.RemoveRange(grid.Permissions);
             grid.Permissions.Clear();
 
             foreach (var permModel in model.Permissions)
@@ -343,54 +320,54 @@ namespace CentTable.Controllers
                 });
             }
 
-            try
-            {
-                await _context.SaveChangesAsync();
-                grid = await _context.DataGrids
-                    .Include(dg => dg.Permissions)
-                    .FirstOrDefaultAsync(dg => dg.Id == id);
-                return Ok(grid);
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, "Ошибка при обновлении разрешений: " + ex.Message);
-            }
+            await _context.SaveChangesAsync();
+
+            grid = await _context.DataGrids
+                .Include(dg => dg.Permissions)
+                .FirstOrDefaultAsync(dg => dg.Id == id);
+
+            return Ok(grid);
         }
 
         [HttpGet("all-records")]
         public async Task<IActionResult> GetAllRecords()
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             var grids = await _context.DataGrids
                 .Include(dg => dg.Columns)
                 .Include(dg => dg.Rows)
                     .ThenInclude(r => r.Cells)
+                .Include(dg => dg.Permissions) 
                 .ToListAsync();
 
             var result = new List<object>();
-
             foreach (var grid in grids)
             {
-                var columns = grid.Columns.Select(c => new { id = c.Id, name = c.Name }).ToList();
+                if (!grid.IsPublic && !(grid.Permissions?.Any(p => p.UserId == userId && p.CanView) ?? false))
+                {
+                    continue;
+                }
 
+                var columns = grid.Columns.Select(c => new { id = c.Id, name = c.Name }).ToList();
                 foreach (var row in grid.Rows)
                 {
-                    var cellValues = new Dictionary<int, string>();
-                    foreach (var cell in row.Cells)
-                    {
-                        cellValues[cell.ColumnId] = cell.Value;
-                    }
+                    var cellValues = row.Cells.ToDictionary(c => c.ColumnId, c => c.Value);
                     result.Add(new
                     {
                         gridId = grid.Id,
                         gridName = grid.Name,
                         rowId = row.Id,
-                        cellValues = cellValues,
-                        columns = columns
+                        cellValues,
+                        columns
                     });
                 }
             }
+
             return Ok(result);
         }
+
+
 
         [HttpPost("batch-delete")]
         public async Task<IActionResult> BatchDeleteRows([FromBody] BatchDeleteModel model)
@@ -406,11 +383,32 @@ namespace CentTable.Controllers
             if (rows.Count == 0)
                 return NotFound("Ни одна строка не найдена");
 
+            var gridId = rows.First().DataGridId;
+            var grid = await _context.DataGrids
+                .Include(dg => dg.Permissions)
+                .FirstOrDefaultAsync(dg => dg.Id == gridId);
+            if (grid == null)
+                return NotFound("Таблица не найдена");
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByIdAsync(userId);
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+
+            if (grid.IsPublic)
+            {
+                if (!isAdmin)
+                    return Forbid("Пакетные операции для публичных таблиц доступны только администратору.");
+            }
+            else
+            {
+                if (!grid.Permissions.Any(p => p.UserId == userId && p.CanEdit))
+                    return Forbid("Нет прав для пакетного редактирования записей в приватной таблице.");
+            }
+
             foreach (var row in rows)
             {
                 _context.Cells.RemoveRange(row.Cells);
             }
-
             _context.Rows.RemoveRange(rows);
 
             try
@@ -430,6 +428,7 @@ namespace CentTable.Controllers
             return Ok(new { Deleted = rows.Count });
         }
 
+
         [HttpPost("batch-insert")]
         public async Task<IActionResult> BatchInsertRows([FromBody] BatchInsertModel model)
         {
@@ -439,9 +438,25 @@ namespace CentTable.Controllers
             var dataGrid = await _context.DataGrids
                                  .Include(dg => dg.Columns)
                                  .Include(dg => dg.Rows)
+                                 .Include(dg => dg.Permissions)
                                  .FirstOrDefaultAsync(dg => dg.Id == model.DataGridId);
             if (dataGrid == null)
                 return NotFound("DataGrid не найден");
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByIdAsync(userId);
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+
+            if (dataGrid.IsPublic)
+            {
+                if (!isAdmin)
+                    return Forbid("Пакетные операции для публичных таблиц доступны только администратору.");
+            }
+            else
+            {
+                if (!dataGrid.Permissions.Any(p => p.UserId == userId && p.CanEdit))
+                    return Forbid("Нет прав для пакетного редактирования записей в приватной таблице.");
+            }
 
             foreach (var copyRow in model.Rows)
             {
@@ -477,6 +492,5 @@ namespace CentTable.Controllers
 
             return Ok(new { Inserted = model.Rows.Count });
         }
-
     }
 }

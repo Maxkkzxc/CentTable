@@ -37,7 +37,7 @@ function SelectRecordDialog({ open, onClose, onSelect, currentGridId, currentRow
                         gridId: record.gridId,
                         gridName: record.gridName,
                         rowId: record.rowId,
-                        targetColumnId: col.id, 
+                        targetColumnId: col.id,
                         targetColumnName: col.name,
                         value: displayValue
                     });

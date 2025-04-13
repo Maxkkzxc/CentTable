@@ -3,6 +3,7 @@ using CentTable.Data;
 using CentTable.Services;
 using CentTable.Extensions;
 using System.Text.Json.Serialization;
+using CentTable.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +24,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 });
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddScoped<JwtTokenGenerator>();
+builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
 var app = builder.Build();
 

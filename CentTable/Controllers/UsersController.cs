@@ -30,7 +30,7 @@ namespace CentTable.Controllers
                 .Where(u => !adminIds.Contains(u.Id))
                 .Select(u => new {
                     u.Id,
-                    u.UserName  
+                    u.UserName
                 })
                 .ToListAsync();
             return Ok(users);

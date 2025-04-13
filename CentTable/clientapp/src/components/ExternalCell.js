@@ -2,8 +2,10 @@
 import { Button, Typography } from '@mui/material';
 import SelectRecordDialog from './SelectRecordDialog';
 import api from '../services/axiosInstance';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-function ExternalCell({ cell, onUpdate, currentGridId, currentRowId }) {
+function ExternalCell({ cell, onUpdate, currentGridId, currentRowId, canEdit }) {
     const [openDialog, setOpenDialog] = useState(false);
     const [externalDisplay, setExternalDisplay] = useState(null);
     const [initialLoading, setInitialLoading] = useState(true);
@@ -22,7 +24,8 @@ function ExternalCell({ cell, onUpdate, currentGridId, currentRowId }) {
     const lastValueRef = useRef(null);
 
     useEffect(() => {
-        if (!parsedValue || !parsedValue.gridId || !parsedValue.rowId || !parsedValue.targetColumnId) return;
+        if (!parsedValue || !parsedValue.gridId || !parsedValue.rowId || !parsedValue.targetColumnId)
+            return;
         let isMounted = true;
 
         const fetchData = async () => {
@@ -37,7 +40,9 @@ function ExternalCell({ cell, onUpdate, currentGridId, currentRowId }) {
                     }
                     return;
                 }
-                const targetCell = row.cells.find(c => Number(c.columnId) === Number(parsedValue.targetColumnId));
+                const targetCell = row.cells.find(
+                    c => Number(c.columnId) === Number(parsedValue.targetColumnId)
+                );
                 if (targetCell) {
                     if (isMounted && targetCell.value !== lastValueRef.current) {
                         lastValueRef.current = targetCell.value;
@@ -55,16 +60,21 @@ function ExternalCell({ cell, onUpdate, currentGridId, currentRowId }) {
         };
 
         fetchData();
-        const intervalId = setInterval(fetchData, 2000);
+        let intervalId;
+        if (process.env.NODE_ENV !== 'test') {
+            intervalId = setInterval(fetchData, 2000);
+        }
         return () => {
             isMounted = false;
-            clearInterval(intervalId);
+            if (intervalId) clearInterval(intervalId);
         };
-    }, [parsedValue, initialLoading]); 
-
+    }, [parsedValue, initialLoading]);
 
     const handleSelectRecord = (item) => {
-        if (Number(item.gridId) === Number(currentGridId) && Number(item.rowId) === Number(currentRowId)) {
+        if (
+            Number(item.gridId) === Number(currentGridId) &&
+            Number(item.rowId) === Number(currentRowId)
+        ) {
             alert("Нельзя ссылаться на саму себя!");
             return;
         }
@@ -74,6 +84,15 @@ function ExternalCell({ cell, onUpdate, currentGridId, currentRowId }) {
             targetColumnId: item.targetColumnId
         });
         onUpdate(newValue);
+        setOpenDialog(false);
+    };
+
+    const handleDoubleClick = () => {
+        if (!canEdit) {
+            toast.info("У вас нет прав для изменения внешней ссылки");
+            return;
+        }
+        setOpenDialog(true);
     };
 
     return (
@@ -85,22 +104,24 @@ function ExternalCell({ cell, onUpdate, currentGridId, currentRowId }) {
                     <Typography
                         variant="body2"
                         color="error"
-                        onDoubleClick={() => setOpenDialog(true)}
-                        style={{ cursor: 'pointer' }}
+                        data-testid="external-text"
+                        onDoubleClick={handleDoubleClick}
+                        style={{ cursor: canEdit ? 'pointer' : 'default' }}
                     >
                         {errorMsg}
                     </Typography>
                 ) : (
                     <Typography
                         variant="body2"
-                        onDoubleClick={() => setOpenDialog(true)}
-                        style={{ cursor: 'pointer' }}
+                        data-testid="external-text"
+                        onDoubleClick={handleDoubleClick}
+                        style={{ cursor: canEdit ? 'pointer' : 'default' }}
                     >
                         {externalDisplay || "Нет значения"}
                     </Typography>
                 )
             ) : (
-                <Button variant="outlined" size="small" onClick={() => setOpenDialog(true)}>
+                <Button variant="outlined" size="small" onClick={handleDoubleClick} disabled={!canEdit}>
                     Выбрать запись
                 </Button>
             )}
