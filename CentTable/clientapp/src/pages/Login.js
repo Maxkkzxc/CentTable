@@ -61,10 +61,10 @@ function Login() {
                     fullWidth
                     disabled={loading}
                     sx={{
-                        backgroundColor: loading ? 'rgba(255, 255, 255, 0.3)' : '#424242', 
-                        color: loading ? 'rgba(255, 255, 255, 0.7)' : '#ffffff', 
+                        backgroundColor: loading ? 'rgba(255, 255, 255, 0.3)' : '#424242',
+                        color: loading ? 'rgba(255, 255, 255, 0.7)' : '#ffffff',
                         '&:hover': {
-                            backgroundColor: loading ? 'rgba(255, 255, 255, 0.3)' : '#616161', 
+                            backgroundColor: loading ? 'rgba(255, 255, 255, 0.3)' : '#616161',
                         },
                     }}
                 >

@@ -381,7 +381,7 @@ namespace CentTable.Migrations
                     b.HasOne("CentTable.Models.Row", "Row")
                         .WithMany("Cells")
                         .HasForeignKey("RowId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Column");

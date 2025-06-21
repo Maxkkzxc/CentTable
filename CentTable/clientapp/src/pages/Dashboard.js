@@ -40,6 +40,8 @@ import ExternalCell from '../components/ExternalCell';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Swal from 'sweetalert2';
+import * as XLSX from "xlsx";
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 
 function parseJwt(token) {
     try {
@@ -94,6 +96,7 @@ function Dashboard() {
     const [editGridIsPublic, setEditGridIsPublic] = useState(true);
     const [editColumns, setEditColumns] = useState([]);
 
+
     const [editingCell, setEditingCell] = useState(null);
     const [editingValue, setEditingValue] = useState("");
 
@@ -104,6 +107,9 @@ function Dashboard() {
     const [selectedRows, setSelectedRows] = useState({});
     const [clipboard, setClipboard] = useState({ rows: null, sourceGridId: null });
     const [selectedGridId, setSelectedGridId] = useState(null);
+    const [currentGridId, setCurrentGridId] = useState(null);
+
+
 
     const columnWidth = 150;
     const isAdmin = userInfo.role === 'Admin';
@@ -141,9 +147,20 @@ function Dashboard() {
     }, [dataGrids, selectedGridId]);
 
     useEffect(() => {
-        setSelectedRows({});
-        setClipboard({ rows: null, sourceGridId: null });
-    }, [selectedGridId]);
+        const handleKeyDown = (e) => {
+            if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyC' || e.code === 'KeyV')) {
+                const grid = dataGrids.find(g => g.id === selectedGridId);
+                if (!grid) return;
+
+                e.preventDefault();
+                if (e.code === 'KeyC') handleCopySelected(grid);
+                if (e.code === 'KeyV') handlePasteCopied(grid);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [selectedGridId, dataGrids, selectedRows]);
 
     const fetchDataGrids = async () => {
         try {
@@ -298,6 +315,100 @@ function Dashboard() {
             minValue: col.minValue !== '' ? parseFloat(col.minValue) : null,
             maxValue: col.maxValue !== '' ? parseFloat(col.maxValue) : null
         })).filter(col => col.name.trim() !== '');
+    };
+
+    const handleImportExcel = async (grid, excelData) => {
+        if (!excelData || excelData.length < 2) {
+            toast.error("Excel файл должен содержать хотя бы заголовки и одну строку данных");
+            return;
+        }
+
+        const headers = excelData[0].map(h => h.toString().trim());
+        const rawTypes = excelData[1] || [];
+        const allowedTypes = ["String", "Numeric", "Email", "RegExp", "External", "SingleSelect", "MultiSelect"];
+
+        const hasValidTypeRow = rawTypes.some(cell => {
+            const val = cell?.toString().trim();
+            return allowedTypes.includes(val);
+        });
+
+        const types = headers.map((_, i) => {
+            const t = rawTypes[i]?.toString().trim();
+            return hasValidTypeRow && allowedTypes.includes(t) ? t : "String";
+        });
+
+        let updatedGrid = { ...grid };
+
+        try {
+            await api.delete(`datagrid/${grid.id}/rows`);
+            updatedGrid.rows = [];
+        } catch (err) {
+            if (err.response?.status !== 204 && err.response?.status !== 404) {
+                toast.error("Не удалось очистить старые строки перед импортом");
+                console.error(err);
+                return;
+            }
+        }
+
+        if (!grid.columns || grid.columns.length === 0) {
+            const newColumns = headers.map((name, i) => ({
+                name,
+                type: types[i],
+                validationRegex: "",
+                options: "",
+            }));
+
+            updatedGrid = {
+                ...grid,
+                columns: newColumns,
+                rows: [],
+            };
+
+            try {
+                const response = await api.put(`datagrid/${grid.id}`, updatedGrid);
+                updatedGrid = response.data;
+            } catch (err) {
+                toast.error("Ошибка при создании колонок");
+                console.error(err);
+                return;
+            }
+        }
+
+        const columnMap = {};
+        headers.forEach((header, i) => {
+            const col = updatedGrid.columns.find(c => c.name === header);
+            if (col) columnMap[i] = col.id;
+        });
+
+        const unmapped = headers.filter((_, i) => columnMap[i] === undefined);
+        if (unmapped.length > 0) {
+            toast.error(`Не найдены колонки: ${unmapped.join(", ")}`);
+            return;
+        }
+
+        const dataRows = excelData.slice(hasValidTypeRow ? 2 : 1).filter(row =>
+            row.some(cell => cell !== undefined && cell !== null && cell.toString().trim() !== "")
+        );
+
+        const rowsToInsert = dataRows.map(row => ({
+            cells: headers.map((_, i) => ({
+                columnId: columnMap[i],
+                value: row[i] !== undefined && row[i] !== null ? row[i].toString() : "",
+            })),
+        }));
+
+        try {
+            await api.post("datagrid/batch-insert", {
+                DataGridId: updatedGrid.id,
+                Rows: rowsToInsert,
+            });
+
+            toast.success(`Импортировано ${rowsToInsert.length} строк`);
+            fetchDataGrids();
+        } catch (err) {
+            toast.error("Ошибка при вставке данных");
+            console.error(err);
+        }
     };
 
     const handleCreateGrid = async () => {
@@ -490,45 +601,149 @@ function Dashboard() {
             toast.info("Нет выбранных строк для копирования");
             return;
         }
-        const copiedRows = grid.rows.filter(row => rowsToCopy.includes(row.id)).map(row => {
-            return {
-                Cells: row.cells.map(cell => {
-                    const column = grid.columns.find(col => Number(col.id) === Number(cell.columnId));
-                    return {
-                        ColumnId: cell.columnId,
-                        ColumnName: column ? column.name : "",
-                        Value: cell.value
-                    };
-                })
-            };
-        });
+
+        const columns = grid.columns;
+        const copiedRows = grid.rows
+            .filter(row => rowsToCopy.includes(row.id))
+            .map(row => ({
+                cells: row.cells.map(cell => ({
+                    columnId: cell.columnId,
+                    columnName: columns.find(col => col.id === cell.columnId)?.name || '',
+                    type: columns.find(col => col.id === cell.columnId)?.type || '',
+                    value: cell.value
+                }))
+            }));
+
         setClipboard({ rows: copiedRows, sourceGridId: grid.id });
-        toast.info("Строки скопированы");
+
+        const csvHeader = columns.map(col => col.name).join(',');
+        const csvTypes = columns.map(col => col.type).join(',');
+
+        const csvBody = copiedRows.map(row =>
+            columns.map(col => {
+                const cell = row.cells.find(c => c.columnName === col.name);
+                let val = cell?.value || '';
+                const needsQuoting = /[",\n]/.test(val);
+                if (needsQuoting) {
+                    val = `"${val.replace(/"/g, '""')}"`;
+                }
+                return val;
+            }).join(',')
+        ).join('\n');
+
+        const csvText = [csvHeader, csvTypes, csvBody].join('\n');
+
+        navigator.clipboard.writeText(csvText)
+            .then(() => toast.success("Скопировано как CSV с типами"))
+            .catch(() => toast.error("Ошибка при копировании в буфер"));
     };
 
-    const handlePasteCopied = async (grid) => {
-        if (!clipboard.rows || clipboard.rows.length === 0) {
-            toast.info("Буфер пуст. Сначала скопируйте строки.");
+    const handlePasteCopied = async (targetGrid) => {
+        let csvText = "";
+        try {
+            csvText = await navigator.clipboard.readText();
+        } catch (err) {
+            toast.error("Не удалось прочитать из буфера обмена");
             return;
         }
-        const payload = {
-            DataGridId: grid.id,
-            Rows: clipboard.rows.map(row => ({
-                Cells: row.Cells.map(cell => ({
-                    ColumnId: cell.ColumnId,
-                    ColumnName: cell.ColumnName,
-                    Value: cell.Value
+
+        let lines = csvText.trim().split("\n");
+        if (lines.length < 2) {
+            toast.error("CSV-данные неполные");
+            return;
+        }
+
+        const headers = lines[0].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(h =>
+            h.trim().replace(/^"(.*)"$/, '$1').replace(/""/g, '"')
+        );
+
+        let types = [];
+        const possibleTypes = ["String", "Numeric", "Email", "RegExp", "External", "SingleSelect", "MultiSelect"];
+        const secondLine = lines[1].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(h =>
+            h.trim().replace(/^"(.*)"$/, '$1').replace(/""/g, '')
+        );
+
+        const isTypeLine = secondLine.length === headers.length && secondLine.every(t => possibleTypes.includes(t));
+        if (isTypeLine) {
+            types = secondLine;
+            lines = [lines[0], ...lines.slice(2)];
+        }
+
+        let updatedGrid = { ...targetGrid };
+        let columnMap = {};
+
+        if (!targetGrid.columns || targetGrid.columns.length === 0) {
+            const newColumns = headers.map((name, index) => ({
+                name,
+                type: types[index] || "String",
+                validationRegex: "",
+                options: ""
+            }));
+
+            updatedGrid = {
+                ...targetGrid,
+                columns: newColumns,
+                rows: []
+            };
+
+            try {
+                const response = await api.put(`datagrid/${targetGrid.id}`, updatedGrid);
+                updatedGrid = response.data; 
+            } catch (err) {
+                console.error("Ошибка при создании колонок:", err);
+                toast.error("Ошибка при создании колонок");
+                return;
+            }
+        }
+
+        headers.forEach((colName, index) => {
+            const col = updatedGrid.columns.find(c => c.name === colName);
+            if (col) columnMap[index] = col.id;
+        });
+
+        const unmapped = headers.filter((colName, idx) => columnMap[idx] === undefined);
+        if (unmapped.length > 0) {
+            toast.error(`Следующие колонки не найдены: ${unmapped.join(", ")}`);
+            return;
+        }
+
+        const rowsToInsert = lines.slice(1).map(line => {
+            const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v =>
+                v.replace(/^"(.*)"$/, '$1').replace(/""/g, '"').trim()
+            );
+            return {
+                cells: values.map((val, idx) => ({
+                    columnId: columnMap[idx],
+                    value: val
                 }))
-            }))
+            };
+        });
+
+        const pluralize = (count, one, few, many) => {
+            const mod10 = count % 10;
+            const mod100 = count % 100;
+
+            if (mod10 === 1 && mod100 !== 11) return one;
+            if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+            return many;
         };
+
         try {
-            await api.post('datagrid/batch-insert', payload);
-            toast.info("Успешная вставка");
+            await api.post('datagrid/batch-insert', {
+                DataGridId: updatedGrid.id,
+                Rows: rowsToInsert
+            });
+
+            await navigator.clipboard.writeText("");
+            setSelectedRows(prev => ({ ...prev, [updatedGrid.id]: [] }));
+
+            const count = rowsToInsert.length;
+            const word = pluralize(count, 'строка', 'строки', 'строк');
+            toast.success(`Вставлена ${count} ${word}`);
+
             fetchDataGrids();
-            setSelectedRows(prev => ({ ...prev, [grid.id]: [] }));
-            setClipboard({ rows: null, sourceGridId: null });
         } catch (err) {
-            console.error("Ошибка при вставке скопированных строк:", err);
+            console.error("Ошибка вставки строк:", err);
             toast.error("Ошибка при вставке строк");
         }
     };
@@ -536,7 +751,23 @@ function Dashboard() {
     const renderGridCard = (grid, columnWidth) => {
         const { canEdit } = getGridPermissions(grid);
         return (
-            <Card key={grid.id} variant="outlined" sx={{ mb: 2, p: 1 }}>
+            <Card
+                key={grid.id}
+                variant="outlined"
+                sx={{ mb: 2, p: 1 }}
+                onMouseEnter={() => {
+                    setCurrentGridId(grid.id);
+                    setSelectedRows(prev => {
+                        const cleared = { ...prev };
+                        Object.keys(cleared).forEach(key => {
+                            if (parseInt(key) !== grid.id) {
+                                cleared[key] = [];
+                            }
+                        });
+                        return cleared;
+                    });
+                }}
+            >
                 <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="h6">{grid.name}</Typography>
@@ -594,15 +825,20 @@ function Dashboard() {
                                 </IconButton>
                             </span>
                         </Tooltip>
-                        <Tooltip title="Копировать выбранные строки">
-                            <IconButton
-                                data-testid="copy-button"
-                                color="primary"
-                                onClick={() => handleCopySelected(grid)}
-                            >
-                                <FileCopyIcon />
-                            </IconButton>
+
+                        <Tooltip title={canEdit ? "Копировать выбранные строки" : "Нет прав на копирование"}>
+                            <span>
+                                <IconButton
+                                    data-testid="copy-button"
+                                    color="primary"
+                                    onClick={() => handleCopySelected(grid)}
+                                    disabled={!canEdit}
+                                >
+                                    <FileCopyIcon />
+                                </IconButton>
+                            </span>
                         </Tooltip>
+
                         <Tooltip title={canEdit ? "Вставить скопированные строки" : "Нет прав на пакетное вставление"}>
                             <span>
                                 <IconButton
@@ -615,6 +851,44 @@ function Dashboard() {
                                 </IconButton>
                             </span>
                         </Tooltip>
+
+                        <Tooltip title="Импорт из Excel">
+                            <span>
+                                <IconButton
+                                    color="secondary"
+                                    component="label"
+                                    sx={{ mr: 1 }}
+                                    disabled={!canEdit}
+                                >
+                                    <UploadFileIcon />
+                                    <input
+                                        type="file"
+                                        accept=".xlsx, .xls"
+                                        hidden
+                                        onChange={async (e) => {
+                                            const file = e.target.files[0];
+                                            if (!file) return;
+
+                                            try {
+                                                const data = await file.arrayBuffer();
+                                                const workbook = XLSX.read(data);
+                                                const firstSheetName = workbook.SheetNames[0];
+                                                const worksheet = workbook.Sheets[firstSheetName];
+                                                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+
+                                                handleImportExcel(grid, jsonData);
+                                            } catch (error) {
+                                                toast.error("Ошибка при чтении Excel файла");
+                                                console.error(error);
+                                            } finally {
+                                                e.target.value = null; 
+                                            }
+                                        }}
+                                    />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
                     </Box>
                     <Typography variant="body2">
                         {grid.isPublic ? 'Публичная' : 'Приватная'}
@@ -624,7 +898,26 @@ function Dashboard() {
                             <table style={{ borderCollapse: 'collapse', width: '100%' }}>
                                 <thead>
                                     <tr>
-                                        <th style={{ border: '1px solid #ccc', padding: '4px', width: '40px' }}>✓</th>
+                                        <th style={{ border: '1px solid #ccc', padding: '4px', width: '40px', textAlign: 'center' }}>
+                                            <Checkbox
+                                                size="small"
+                                                checked={
+                                                    grid.rows.length > 0 &&
+                                                    selectedRows[grid.id]?.length === grid.rows.length
+                                                }
+                                                indeterminate={
+                                                    selectedRows[grid.id]?.length > 0 &&
+                                                    selectedRows[grid.id]?.length < grid.rows.length
+                                                }
+                                                onChange={(e) => {
+                                                    const allIds = grid.rows.map(r => r.id);
+                                                    setSelectedRows(prev => ({
+                                                        ...prev,
+                                                        [grid.id]: e.target.checked ? allIds : []
+                                                    }));
+                                                }}
+                                            />
+                                        </th>
                                         {grid.columns.map(col => (
                                             <th key={col.id} style={{ border: '1px solid #ccc', padding: '4px', minWidth: columnWidth }}>
                                                 <Typography variant="subtitle2">{col.name}</Typography>
@@ -652,7 +945,7 @@ function Dashboard() {
                                                         data-testid={`row-checkbox-${row.id}`}
                                                         aria-label={`checkbox for row ${row.id}`}
                                                         checked={selectedRows[grid.id]?.includes(row.id) || false}
-                                                        onChange={(e) => handleRowSelection(grid.id, row.id, e.target.checked)}
+                                                        onChange={(e) => handleRowSelection(grid.id, row.id, e.target.checked, e.nativeEvent)}
                                                     />
                                                 </td>
                                                 {grid.columns.map(col => {

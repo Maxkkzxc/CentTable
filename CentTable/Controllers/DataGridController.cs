@@ -1,4 +1,5 @@
-﻿using System.Security.Claims;
+﻿using System.Linq.Dynamic.Core;
+using System.Security.Claims;
 using CentTable.Data;
 using CentTable.Models;
 using CentTable.ViewModels;
@@ -7,12 +8,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Linq;
-using System.Linq;
-using System.Threading.Tasks;
-using CentTable.Enums;
-using System.Reflection;
-using System.Linq.Dynamic.Core;
-using System.Collections.Generic;
 
 namespace CentTable.Controllers
 {
@@ -29,7 +24,7 @@ namespace CentTable.Controllers
             _context = context;
             _userManager = userManager;
         }
-       
+
         private bool HasPermission(DataGrid grid, string userId, string operation)
         {
             if (User.IsInRole("Admin"))
@@ -173,6 +168,7 @@ namespace CentTable.Controllers
 
             var modelColumnIds = model.Columns.Where(c => c.Id != 0).Select(c => c.Id).ToList();
             var columnsToRemove = grid.Columns.Where(c => !modelColumnIds.Contains(c.Id)).ToList();
+
             foreach (var col in columnsToRemove)
             {
                 foreach (var row in grid.Rows)
@@ -191,7 +187,12 @@ namespace CentTable.Controllers
             {
                 if (colModel.Id != 0)
                 {
-                    var col = grid.Columns.First(c => c.Id == colModel.Id);
+                    var col = grid.Columns.FirstOrDefault(c => c.Id == colModel.Id);
+                    if (col == null)
+                    {
+                        continue;
+                    }
+
                     col.Name = colModel.Name;
                     col.Type = colModel.Type;
                     col.ValidationRegex = colModel.ValidationRegex;
@@ -269,6 +270,24 @@ namespace CentTable.Controllers
             return Ok(grid);
         }
 
+        [HttpDelete("{id}/rows")]
+        public async Task<IActionResult> DeleteAllRows(int id)
+        {
+            var rows = await _context.Rows
+                .Include(r => r.Cells)
+                .Where(r => r.DataGridId == id)
+                .ToListAsync();
+
+            if (rows.Count == 0)
+                return NoContent();
+
+            _context.Cells.RemoveRange(rows.SelectMany(r => r.Cells));
+            _context.Rows.RemoveRange(rows);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDataGrid(int id)
         {
@@ -338,7 +357,7 @@ namespace CentTable.Controllers
                 .Include(dg => dg.Columns)
                 .Include(dg => dg.Rows)
                     .ThenInclude(r => r.Cells)
-                .Include(dg => dg.Permissions) 
+                .Include(dg => dg.Permissions)
                 .ToListAsync();
 
             var result = new List<object>();
