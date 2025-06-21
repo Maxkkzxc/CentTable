@@ -37,7 +37,7 @@ namespace CentTable.Data
                 .HasMany(r => r.Cells)
                 .WithOne(c => c.Row)
                 .HasForeignKey(c => c.RowId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Column>()
                 .HasMany(c => c.Cells)

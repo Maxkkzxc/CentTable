@@ -361,7 +361,6 @@ function Dashboard() {
             updatedGrid = {
                 ...grid,
                 columns: newColumns,
-                rows: [],
             };
 
             try {
@@ -415,29 +414,22 @@ function Dashboard() {
         const payload = {
             name: newGridName,
             isPublic: newGridIsPublic,
-            columns: formatColumnConstraints(createColumns)
+            columns: formatColumnConstraints(createColumns) 
         };
 
         try {
             const response = await api.post('datagrid/create', payload);
             const newGrid = response.data;
-            if (!newGrid.rows || newGrid.rows.length === 0) {
-                newGrid.rows = [{
-                    id: 0,
-                    cells: newGrid.columns.map(col => ({
-                        columnId: col.id,
-                        value: ""
-                    }))
-                }];
-            }
-            setDataGrids([...dataGrids, newGrid]);
+
+            setDataGrids(prev => [...prev, newGrid]);
             setSelectedGridId(newGrid.id);
             handleCloseCreate();
         } catch (err) {
-            console.error("Ошибка при создании таблицы:", err.response ? err.response.data : err.message);
+            console.error("Ошибка при создании таблицы:", err.response?.data || err.message);
             toast.error("Ошибка при создании таблицы");
         }
     };
+
 
     const updateGrid = async (updatedGrid) => {
         try {
@@ -501,7 +493,6 @@ function Dashboard() {
             name: editGridName,
             isPublic: editGridIsPublic,
             columns: processedColumns,
-            rows: editingGrid.rows
         };
         console.log('Отправляем payload:', payload);
         try {
@@ -683,12 +674,11 @@ function Dashboard() {
             updatedGrid = {
                 ...targetGrid,
                 columns: newColumns,
-                rows: []
             };
 
             try {
                 const response = await api.put(`datagrid/${targetGrid.id}`, updatedGrid);
-                updatedGrid = response.data; 
+                updatedGrid = response.data;
             } catch (err) {
                 console.error("Ошибка при создании колонок:", err);
                 toast.error("Ошибка при создании колонок");
@@ -707,17 +697,26 @@ function Dashboard() {
             return;
         }
 
-        const rowsToInsert = lines.slice(1).map(line => {
-            const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v =>
-                v.replace(/^"(.*)"$/, '$1').replace(/""/g, '"').trim()
+        const rowsToInsert = lines.slice(1) 
+            .map(line => {
+                const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v =>
+                    v.replace(/^"(.*)"$/, '$1').replace(/""/g, '"').trim()
+                );
+                return {
+                    cells: values.map((val, idx) => ({
+                        columnId: columnMap[idx],
+                        value: val
+                    }))
+                };
+            })
+            .filter(row =>
+                row.cells.some(cell => cell.value && cell.value.trim() !== "")
             );
-            return {
-                cells: values.map((val, idx) => ({
-                    columnId: columnMap[idx],
-                    value: val
-                }))
-            };
-        });
+
+        if (rowsToInsert.length === 0) {
+            toast.error("Нет данных для вставки");
+            return;
+        }
 
         const pluralize = (count, one, few, many) => {
             const mod10 = count % 10;
@@ -747,6 +746,7 @@ function Dashboard() {
             toast.error("Ошибка при вставке строк");
         }
     };
+
 
     const renderGridCard = (grid, columnWidth) => {
         const { canEdit } = getGridPermissions(grid);

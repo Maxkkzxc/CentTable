@@ -10,7 +10,7 @@ namespace CentTable.Models
         public string Name { get; set; }
         public bool IsPublic { get; set; }
         public ICollection<Column> Columns { get; set; }
-        public ICollection<Row> Rows { get; set; }
+        public ICollection<Row>? Rows { get; set; } = new List<Row>();
         public ICollection<DataGridPermission> Permissions { get; set; }
     }
 }

@@ -121,19 +121,7 @@ namespace CentTable.Controllers
             };
 
             _context.DataGrids.Add(grid);
-            await _context.SaveChangesAsync();
-
-            var defaultRow = new Row
-            {
-                DataGridId = grid.Id,
-                Cells = grid.Columns.Select(col => new Cell
-                {
-                    ColumnId = col.Id,
-                    Value = ""
-                }).ToList()
-            };
-            _context.Rows.Add(defaultRow);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(); 
 
             var loadedGrid = await _context.DataGrids
                 .Include(g => g.Columns)
@@ -149,6 +137,9 @@ namespace CentTable.Controllers
             if (model == null)
                 return BadRequest("Модель равна null");
 
+            model.Columns ??= new List<UpdateColumnModel>();
+            model.Rows ??= new List<UpdateRowModel>();
+
             var grid = await _context.DataGrids
                 .Include(dg => dg.Columns)
                 .Include(dg => dg.Rows).ThenInclude(r => r.Cells)
@@ -159,7 +150,6 @@ namespace CentTable.Controllers
                 return NotFound();
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
             if (!HasPermission(grid, userId, "edit"))
                 return Forbid("Нет прав для редактирования этой таблицы.");
 
@@ -171,7 +161,7 @@ namespace CentTable.Controllers
 
             foreach (var col in columnsToRemove)
             {
-                foreach (var row in grid.Rows)
+                foreach (var row in grid.Rows ?? Enumerable.Empty<Row>())
                 {
                     var cellsToRemove = row.Cells.Where(c => c.ColumnId == col.Id).ToList();
                     foreach (var cell in cellsToRemove)
@@ -183,15 +173,26 @@ namespace CentTable.Controllers
                 _context.Columns.Remove(col);
             }
 
+            if (!grid.Columns.Any())
+            {
+                var rowsToDelete = grid.Rows?.ToList() ?? new List<Row>();
+
+                foreach (var row in rowsToDelete)
+                {
+                    foreach (var cell in row.Cells.ToList())
+                        _context.Cells.Remove(cell);
+
+                    _context.Rows.Remove(row);
+                }
+
+            }
+
             foreach (var colModel in model.Columns)
             {
                 if (colModel.Id != 0)
                 {
                     var col = grid.Columns.FirstOrDefault(c => c.Id == colModel.Id);
-                    if (col == null)
-                    {
-                        continue;
-                    }
+                    if (col == null) continue;
 
                     col.Name = colModel.Name;
                     col.Type = colModel.Type;
@@ -214,18 +215,26 @@ namespace CentTable.Controllers
                         MaxValue = colModel.MaxValue,
                         DataGrid = grid
                     };
+
                     grid.Columns.Add(newCol);
 
-                    foreach (var row in grid.Rows)
+                    foreach (var row in grid.Rows ?? Enumerable.Empty<Row>())
                     {
-                        row.Cells.Add(new Cell { Column = newCol, Value = "", Row = row });
+                        row.Cells.Add(new Cell
+                        {
+                            Column = newCol,
+                            Value = "",
+                            Row = row
+                        });
                     }
                 }
             }
 
             foreach (var rowModel in model.Rows)
             {
-                var row = grid.Rows.FirstOrDefault(r => r.Id == rowModel.Id);
+                rowModel.Cells ??= new List<UpdateCellModel>();
+                var row = grid.Rows?.FirstOrDefault(r => r.Id == rowModel.Id);
+
                 if (row != null)
                 {
                     foreach (var cellModel in rowModel.Cells)
@@ -241,14 +250,24 @@ namespace CentTable.Controllers
                         }
                         else
                         {
-                            row.Cells.Add(new Cell { ColumnId = cellModel.ColumnId, Value = value, Row = row });
+                            row.Cells.Add(new Cell
+                            {
+                                ColumnId = cellModel.ColumnId,
+                                Value = value,
+                                Row = row
+                            });
                         }
                     }
 
                     var existingColumnIds = row.Cells.Select(c => c.ColumnId).ToList();
                     foreach (var col in grid.Columns.Where(c => !existingColumnIds.Contains(c.Id)))
                     {
-                        row.Cells.Add(new Cell { ColumnId = col.Id, Value = "", Row = row });
+                        row.Cells.Add(new Cell
+                        {
+                            ColumnId = col.Id,
+                            Value = "",
+                            Row = row
+                        });
                     }
                 }
                 else
@@ -262,6 +281,8 @@ namespace CentTable.Controllers
                             Value = cm.Value?.ToString() ?? ""
                         }).ToList()
                     };
+
+                    grid.Rows ??= new List<Row>();
                     grid.Rows.Add(newRow);
                 }
             }
@@ -301,6 +322,7 @@ namespace CentTable.Controllers
 
             if (grid == null)
                 return NotFound();
+
 
             if (!HasPermission(grid, userId, "delete"))
                 return Forbid("Нет прав для удаления этой таблицы.");
@@ -385,8 +407,6 @@ namespace CentTable.Controllers
 
             return Ok(result);
         }
-
-
 
         [HttpPost("batch-delete")]
         public async Task<IActionResult> BatchDeleteRows([FromBody] BatchDeleteModel model)
@@ -479,6 +499,7 @@ namespace CentTable.Controllers
 
             foreach (var copyRow in model.Rows)
             {
+
                 var newRow = new Row
                 {
                     DataGridId = dataGrid.Id,

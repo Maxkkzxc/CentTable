@@ -7,8 +7,8 @@ namespace CentTable.ViewModels
     {
         public string Name { get; set; }
         public bool IsPublic { get; set; }
-        public List<UpdateColumnModel> Columns { get; set; }
-        public List<UpdateRowModel> Rows { get; set; }
+        public List<UpdateColumnModel>? Columns { get; set; }
+        public List<UpdateRowModel>? Rows { get; set; }
     }
 
     public class UpdateColumnModel
