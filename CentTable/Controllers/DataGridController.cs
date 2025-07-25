@@ -1,12 +1,14 @@
 ﻿using System.Linq.Dynamic.Core;
 using System.Security.Claims;
 using CentTable.Data;
+using CentTable.Enums;
 using CentTable.Models;
 using CentTable.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace CentTable.Controllers
@@ -94,6 +96,7 @@ namespace CentTable.Controllers
         {
             if (model == null)
                 return BadRequest("Модель равна null");
+
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -108,20 +111,33 @@ namespace CentTable.Controllers
             {
                 Name = model.Name,
                 IsPublic = model.IsPublic,
-                Columns = model.Columns.Select(c => new Column
-                {
-                    Name = c.Name,
-                    Type = c.Type,
-                    ValidationRegex = c.ValidationRegex,
-                    Options = c.Options,
-                    MaxLength = c.MaxLength,
-                    MinValue = c.MinValue,
-                    MaxValue = c.MaxValue
-                }).ToList()
+                Columns = new List<Column>()
             };
 
             _context.DataGrids.Add(grid);
-            await _context.SaveChangesAsync(); 
+            await _context.SaveChangesAsync(); // нужен, чтобы grid.Id появился
+
+            foreach (var c in model.Columns)
+            {
+                var newCol = new Column
+                {
+                    Name = c.Name,
+                    Type = c.Type,
+                    ValidationRegex = c.ValidationRegex ?? "",
+                    Options = c.Options ?? "",
+                    MaxLength = c.MaxLength,
+                    MinValue = c.MinValue,
+                    MaxValue = c.MaxValue,
+                    LinkedGridId = c.LinkedGridId,
+                    LinkedColumnId = c.LinkedColumnId,
+                    DataGridId = grid.Id
+                };
+
+                _context.Columns.Add(newCol);
+                await _context.SaveChangesAsync(); // нужен для newCol.Id
+
+                await AddLinkedColumnsAsync(newCol, grid);
+            }
 
             var loadedGrid = await _context.DataGrids
                 .Include(g => g.Columns)
@@ -153,7 +169,9 @@ namespace CentTable.Controllers
             if (!HasPermission(grid, userId, "edit"))
                 return Forbid("Нет прав для редактирования этой таблицы.");
 
-            grid.Name = model.Name;
+            if (!string.IsNullOrWhiteSpace(model.Name))
+                grid.Name = model.Name;
+
             grid.IsPublic = model.IsPublic;
 
             var modelColumnIds = model.Columns.Where(c => c.Id != 0).Select(c => c.Id).ToList();
@@ -167,24 +185,21 @@ namespace CentTable.Controllers
                     foreach (var cell in cellsToRemove)
                     {
                         _context.Cells.Remove(cell);
-                        row.Cells.Remove(cell);
                     }
+                    row.Cells = row.Cells.Where(c => c.ColumnId != col.Id).ToList();
                 }
                 _context.Columns.Remove(col);
             }
 
             if (!grid.Columns.Any())
             {
-                var rowsToDelete = grid.Rows?.ToList() ?? new List<Row>();
-
-                foreach (var row in rowsToDelete)
+                foreach (var row in grid.Rows?.ToList() ?? new List<Row>())
                 {
                     foreach (var cell in row.Cells.ToList())
                         _context.Cells.Remove(cell);
 
                     _context.Rows.Remove(row);
                 }
-
             }
 
             foreach (var colModel in model.Columns)
@@ -199,6 +214,8 @@ namespace CentTable.Controllers
                     col.ValidationRegex = colModel.ValidationRegex;
                     col.Options = colModel.Options;
                     col.MaxLength = colModel.MaxLength;
+                    col.LinkedGridId = colModel.LinkedGridId;
+                    col.LinkedColumnId = colModel.LinkedColumnId;
                     col.MinValue = colModel.MinValue;
                     col.MaxValue = colModel.MaxValue;
                 }
@@ -208,21 +225,26 @@ namespace CentTable.Controllers
                     {
                         Name = colModel.Name,
                         Type = colModel.Type,
-                        ValidationRegex = colModel.ValidationRegex,
-                        Options = colModel.Options,
+                        ValidationRegex = colModel.ValidationRegex ?? "",
+                        Options = colModel.Options ?? "",
                         MaxLength = colModel.MaxLength,
                         MinValue = colModel.MinValue,
                         MaxValue = colModel.MaxValue,
+                        LinkedColumnId = colModel.LinkedColumnId,
+                        LinkedGridId = colModel.LinkedGridId,
                         DataGrid = grid
                     };
 
                     grid.Columns.Add(newCol);
+                    await _context.SaveChangesAsync();
+
+                    await AddLinkedColumnsAsync(newCol, grid);
 
                     foreach (var row in grid.Rows ?? Enumerable.Empty<Row>())
                     {
                         row.Cells.Add(new Cell
                         {
-                            Column = newCol,
+                            ColumnId = newCol.Id,
                             Value = "",
                             Row = row
                         });
@@ -257,6 +279,53 @@ namespace CentTable.Controllers
                                 Row = row
                             });
                         }
+
+                        if (!string.IsNullOrWhiteSpace(value) && value.StartsWith("{"))
+                        {
+                            try
+                            {
+                                var parsed = JsonConvert.DeserializeObject<Dictionary<string, int>>(value);
+                                if (parsed != null && parsed.ContainsKey("rowId"))
+                                {
+                                    var sourceCol = grid.Columns.FirstOrDefault(c => c.Id == cellModel.ColumnId);
+                                    if (sourceCol?.Type == ColumnType.External && sourceCol.LinkedGridId.HasValue && sourceCol.LinkedColumnId.HasValue)
+                                    {
+                                        var linkedRow = await _context.Rows
+                                            .Include(r => r.Cells)
+                                            .FirstOrDefaultAsync(r => r.Id == parsed["rowId"]);
+
+                                        if (linkedRow != null)
+                                        {
+                                            var reverseCol = await _context.Columns
+                                                .FirstOrDefaultAsync(c =>
+                                                    c.DataGridId == linkedRow.DataGridId &&
+                                                    c.Type == ColumnType.ReverseExternal &&
+                                                    c.SourceGridId == grid.Id &&
+                                                    c.SourceColumnId == sourceCol.Id);
+
+                                            if (reverseCol != null)
+                                            {
+                                                var backCell = linkedRow.Cells.FirstOrDefault(c => c.ColumnId == reverseCol.Id);
+                                                if (backCell == null)
+                                                {
+                                                    linkedRow.Cells.Add(new Cell
+                                                    {
+                                                        ColumnId = reverseCol.Id,
+                                                        RowId = linkedRow.Id,
+                                                        Value = JsonConvert.SerializeObject(new { rowId = row.Id })
+                                                    });
+                                                }
+                                                else
+                                                {
+                                                    backCell.Value = JsonConvert.SerializeObject(new { rowId = row.Id });
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
                     }
 
                     var existingColumnIds = row.Cells.Select(c => c.ColumnId).ToList();
@@ -290,6 +359,7 @@ namespace CentTable.Controllers
             await _context.SaveChangesAsync();
             return Ok(grid);
         }
+
 
         [HttpDelete("{id}/rows")]
         public async Task<IActionResult> DeleteAllRows(int id)
@@ -328,6 +398,262 @@ namespace CentTable.Controllers
                 return Forbid("Нет прав для удаления этой таблицы.");
 
             _context.DataGrids.Remove(grid);
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpPost("update-cell")]
+        public async Task<IActionResult> UpdateCell([FromBody] UpdateCellRequest req)
+        {
+            var grid = await _context.DataGrids
+                .Include(g => g.Columns)
+                .Include(g => g.Rows).ThenInclude(r => r.Cells)
+                .FirstOrDefaultAsync(g => g.Id == req.GridId);
+
+            if (grid == null) return NotFound("Таблица не найдена");
+
+            var row = grid.Rows.FirstOrDefault(r => r.Id == req.RowId);
+            if (row == null) return NotFound("Строка не найдена");
+
+            var column = grid.Columns.FirstOrDefault(c => c.Id == req.ColumnId);
+            if (column == null) return NotFound("Колонка не найдена");
+
+            var cell = row.Cells.FirstOrDefault(c => c.ColumnId == req.ColumnId);
+
+            List<int> oldLinkedIds = new();
+            if (cell?.Value != null)
+            {
+                try
+                {
+                    var parsedOld = JsonConvert.DeserializeObject<List<Dictionary<string, object>>>(cell.Value);
+                    oldLinkedIds = parsedOld?.Select(p => Convert.ToInt32(p["rowId"])).ToList() ?? new();
+                }
+                catch { }
+            }
+
+            if (cell != null)
+                cell.Value = req.Value;
+            else
+            {
+                var newCell = new Cell { ColumnId = req.ColumnId, RowId = row.Id, Value = req.Value };
+                row.Cells.Add(newCell);
+                _context.Cells.Add(newCell);
+            }
+
+            var parsedLinks = new List<Dictionary<string, object>>();
+            if (!string.IsNullOrWhiteSpace(req.Value))
+            {
+                try
+                {
+                    parsedLinks = req.Value.TrimStart().StartsWith("[")
+                        ? JsonConvert.DeserializeObject<List<Dictionary<string, object>>>(req.Value)
+                        : new List<Dictionary<string, object>> { JsonConvert.DeserializeObject<Dictionary<string, object>>(req.Value) };
+                }
+                catch
+                {
+                    return BadRequest("Невалидный формат JSON в value");
+                }
+            }
+
+            var newLinkedIds = parsedLinks
+                .Where(p => p.ContainsKey("rowId"))
+                .Select(p => Convert.ToInt32(p["rowId"]))
+                .Distinct()
+                .ToList();
+
+            var removedIds = oldLinkedIds.Except(newLinkedIds).ToList();
+
+            foreach (var removedId in removedIds)
+            {
+                var linkedRow = await _context.Rows.Include(r => r.Cells).FirstOrDefaultAsync(r => r.Id == removedId);
+                if (linkedRow == null) continue;
+
+                if (column.Type == ColumnType.External)
+                {
+                    var reverseCol = await _context.Columns.FirstOrDefaultAsync(c =>
+                        c.DataGridId == linkedRow.DataGridId &&
+                        c.Type == ColumnType.ReverseExternal &&
+                        c.SourceGridId == grid.Id &&
+                        c.SourceColumnId == column.Id);
+
+                    if (reverseCol == null) continue;
+
+                    var reverseCell = linkedRow.Cells.FirstOrDefault(c => c.ColumnId == reverseCol.Id);
+                    if (reverseCell != null)
+                    {
+                        try
+                        {
+                            var list = JsonConvert.DeserializeObject<List<Dictionary<string, object>>>(reverseCell.Value ?? "[]")
+                                ?.Where(l => Convert.ToInt32(l["rowId"]) != row.Id).ToList();
+
+                            if (list == null || !list.Any())
+                            {
+                                linkedRow.Cells.Remove(reverseCell);
+                                _context.Cells.Remove(reverseCell);
+                            }
+                            else
+                                reverseCell.Value = JsonConvert.SerializeObject(list);
+                        }
+                        catch
+                        {
+                            linkedRow.Cells.Remove(reverseCell);
+                            _context.Cells.Remove(reverseCell);
+                        }
+                    }
+                }
+                else if (column.Type == ColumnType.ReverseExternal)
+                {
+                    var forwardRow = await _context.Rows.Include(r => r.Cells).FirstOrDefaultAsync(r => r.Id == removedId);
+                    if (forwardRow == null) continue;
+
+                    var externalCol = await _context.Columns.FirstOrDefaultAsync(c =>
+                        c.DataGridId == forwardRow.DataGridId &&
+                        c.Type == ColumnType.External &&
+                        c.Id == column.SourceColumnId);
+
+                    if (externalCol == null) continue;
+
+                    var forwardCell = forwardRow.Cells.FirstOrDefault(c => c.ColumnId == externalCol.Id);
+                    if (forwardCell != null)
+                    {
+                        try
+                        {
+                            var list = JsonConvert.DeserializeObject<List<Dictionary<string, object>>>(forwardCell.Value ?? "[]")
+                                ?.Where(x => Convert.ToInt32(x["rowId"]) != row.Id).ToList();
+
+                            if (list == null || !list.Any())
+                            {
+                                forwardRow.Cells.Remove(forwardCell);
+                                _context.Cells.Remove(forwardCell);
+                            }
+                            else
+                                forwardCell.Value = JsonConvert.SerializeObject(list);
+                        }
+                        catch
+                        {
+                            forwardRow.Cells.Remove(forwardCell);
+                            _context.Cells.Remove(forwardCell);
+                        }
+                    }
+                }
+            }
+
+            foreach (var link in parsedLinks)
+            {
+                if (!link.TryGetValue("rowId", out var rowIdObj)) continue;
+                int linkedRowId = Convert.ToInt32(rowIdObj);
+
+                var linkedRow = await _context.Rows.Include(r => r.Cells).FirstOrDefaultAsync(r => r.Id == linkedRowId);
+                if (linkedRow == null) continue;
+
+                if (column.Type == ColumnType.External)
+                {
+                    var reverseCol = await _context.Columns.FirstOrDefaultAsync(c =>
+                        c.DataGridId == linkedRow.DataGridId &&
+                        c.Type == ColumnType.ReverseExternal &&
+                        c.SourceGridId == grid.Id &&
+                        c.SourceColumnId == column.Id);
+                    if (reverseCol == null) continue;
+
+                    link.TryGetValue("display", out var rawDisp);
+                    var sourceDisplay = rawDisp?.ToString();
+                    if (string.IsNullOrWhiteSpace(sourceDisplay))
+                    {
+                        sourceDisplay = $"(ID: {row.Id})";
+                    }
+                    var reverseCell = linkedRow.Cells.FirstOrDefault(c => c.ColumnId == reverseCol.Id);
+
+                    if (reverseCell == null)
+                    {
+                        linkedRow.Cells.Add(new Cell
+                        {
+                            ColumnId = reverseCol.Id,
+                            RowId = linkedRow.Id,
+                            Value = JsonConvert.SerializeObject(new[] {
+                        new { rowId = row.Id, display = sourceDisplay }
+                    })
+                        });
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var existing = JsonConvert.DeserializeObject<List<Dictionary<string, object>>>(reverseCell.Value ?? "[]") ?? new();
+                            if (!existing.Any(e => Convert.ToInt32(e["rowId"]) == row.Id))
+                            {
+                                existing.Add(new Dictionary<string, object>
+                        {
+                            { "rowId", row.Id },
+                            { "display", sourceDisplay }
+                        });
+
+                                reverseCell.Value = JsonConvert.SerializeObject(existing);
+                            }
+                        }
+                        catch
+                        {
+                            reverseCell.Value = JsonConvert.SerializeObject(new[] {
+                        new { rowId = row.Id, display = sourceDisplay }
+                    });
+                        }
+                    }
+                }
+                else if (column.Type == ColumnType.ReverseExternal)
+                {
+                    var externalCol = await _context.Columns.FirstOrDefaultAsync(c =>
+                        c.DataGridId == linkedRow.DataGridId &&
+                        c.Type == ColumnType.External &&
+                        c.Id == column.SourceColumnId);
+
+                    if (externalCol == null) continue;
+
+                    string display = $"(ID: {row.Id})";
+                    if (externalCol.LinkedColumnId.HasValue)
+                    {
+                        var displayCell = row.Cells.FirstOrDefault(c => c.ColumnId == externalCol.LinkedColumnId.Value);
+                        if (!string.IsNullOrWhiteSpace(displayCell?.Value))
+                            display = displayCell.Value;
+                    }
+
+                    var forwardCell = linkedRow.Cells.FirstOrDefault(c => c.ColumnId == externalCol.Id);
+
+                    if (forwardCell == null)
+                    {
+                        linkedRow.Cells.Add(new Cell
+                        {
+                            ColumnId = externalCol.Id,
+                            RowId = linkedRow.Id,
+                            Value = JsonConvert.SerializeObject(new[] {
+                        new { rowId = row.Id, display = display }
+                    })
+                        });
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var existing = JsonConvert.DeserializeObject<List<Dictionary<string, object>>>(forwardCell.Value ?? "[]") ?? new();
+                            if (!existing.Any(e => Convert.ToInt32(e["rowId"]) == row.Id))
+                            {
+                                existing.Add(new Dictionary<string, object>
+                        {
+                            { "rowId", row.Id },
+                            { "display", display }
+                        });
+
+                                forwardCell.Value = JsonConvert.SerializeObject(existing);
+                            }
+                        }
+                        catch
+                        {
+                            forwardCell.Value = JsonConvert.SerializeObject(new[] {
+                        new { rowId = row.Id, display = display }
+                    });
+                        }
+                    }
+                }
+            }
+
             await _context.SaveChangesAsync();
             return Ok();
         }
@@ -531,6 +857,49 @@ namespace CentTable.Controllers
             }
 
             return Ok(new { Inserted = model.Rows.Count });
+        }
+        private async Task AddLinkedColumnsAsync(Column externalColumn, DataGrid currentGrid)
+        {
+            if (externalColumn.Type != ColumnType.External || externalColumn.LinkedGridId == null || externalColumn.LinkedColumnId == null)
+                return;
+
+            var linkedGrid = await _context.DataGrids
+                .Include(g => g.Columns)
+                .FirstOrDefaultAsync(g => g.Id == externalColumn.LinkedGridId.Value);
+
+            if (linkedGrid == null)
+                return;
+
+            var reverseColumn = new Column
+            {
+                Name = currentGrid.Name,
+                Type = ColumnType.ReverseExternal,
+                LinkedGridId = currentGrid.Id,
+                LinkedColumnId = externalColumn.Id,
+                SourceGridId = currentGrid.Id,
+                SourceColumnId = externalColumn.Id,
+                DataGridId = linkedGrid.Id,
+                Options = "",
+                ValidationRegex = ""
+            };
+
+            _context.Columns.Add(reverseColumn);
+
+            var linkedColumn = linkedGrid.Columns.FirstOrDefault(c => c.Id == externalColumn.LinkedColumnId);
+            var displayColumn = new Column
+            {
+                Name = $"{linkedColumn?.Name ?? "Name"} (from {linkedGrid.Name})",
+                Type = ColumnType.String,
+                SourceGridId = linkedGrid.Id,
+                SourceColumnId = externalColumn.LinkedColumnId,
+                DataGridId = currentGrid.Id,
+                Options = "",
+                ValidationRegex = ""
+            };
+
+            _context.Columns.Add(displayColumn);
+
+            await _context.SaveChangesAsync();
         }
     }
 }

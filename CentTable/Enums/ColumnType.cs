@@ -8,6 +8,7 @@
         RegExp,
         External,
         SingleSelect,
-        MultiSelect
+        MultiSelect,
+        ReverseExternal
     }
 }

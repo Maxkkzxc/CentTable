@@ -18,6 +18,10 @@ namespace CentTable.Models
         public int? MaxLength { get; set; }
         public double? MinValue { get; set; }
         public double? MaxValue { get; set; }
+        public int? LinkedGridId { get; set; }          
+        public int? LinkedColumnId { get; set; }        
+        public int? SourceGridId { get; set; }          
+        public int? SourceColumnId { get; set; }        
 
         [JsonIgnore]
         public ICollection<Cell> Cells { get; set; }

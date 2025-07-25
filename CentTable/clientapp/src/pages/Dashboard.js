@@ -109,8 +109,6 @@ function Dashboard() {
     const [selectedGridId, setSelectedGridId] = useState(null);
     const [currentGridId, setCurrentGridId] = useState(null);
 
-
-
     const columnWidth = 150;
     const isAdmin = userInfo.role === 'Admin';
 
@@ -161,6 +159,18 @@ function Dashboard() {
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [selectedGridId, dataGrids, selectedRows]);
+
+
+    const fetchSingleGrid = async (gridId) => {
+        try {
+            const res = await api.get(`datagrid/${gridId}`);
+            setDataGrids(prev =>
+                prev.map(g => g.id === gridId ? res.data : g)
+            );
+        } catch (err) {
+            console.error(`Не удалось дозагрузить таблицу ${gridId}:`, err);
+        }
+    };
 
     const fetchDataGrids = async () => {
         try {
@@ -305,6 +315,13 @@ function Dashboard() {
     const handleCreateColumnChange = (index, field, value) => {
         const newCols = [...createColumns];
         newCols[index][field] = value;
+
+        if (field === 'linkedGridId') {
+            const selectedGrid = dataGrids.find(g => g.id === value);
+            const firstStringCol = selectedGrid?.columns.find(c => c.type === 'String');
+            newCols[index]['linkedColumnId'] = firstStringCol?.id || '';
+        }
+
         setCreateColumns(newCols);
     };
 
@@ -420,6 +437,7 @@ function Dashboard() {
         try {
             const response = await api.post('datagrid/create', payload);
             const newGrid = response.data;
+            await fetchDataGrids();
 
             setDataGrids(prev => [...prev, newGrid]);
             setSelectedGridId(newGrid.id);
@@ -483,6 +501,13 @@ function Dashboard() {
         setEditColumns(prevColumns => {
             const newColumns = [...prevColumns];
             newColumns[index] = { ...newColumns[index], [field]: value };
+
+            if (field === 'linkedGridId') {
+                const selectedGrid = dataGrids.find(g => g.id === value);
+                const firstStringCol = selectedGrid?.columns.find(c => c.type === 'String');
+                newColumns[index]['linkedColumnId'] = firstStringCol?.id || '';
+            }
+
             return newColumns;
         });
     };
@@ -497,6 +522,7 @@ function Dashboard() {
         console.log('Отправляем payload:', payload);
         try {
             const response = await api.put(`datagrid/${editingGrid.id}`, payload);
+            await fetchDataGrids();
             console.log('Ответ сервера:', response.data);
             setDataGrids(prev => prev.map(g => g.id === editingGrid.id ? response.data : g));
             handleCloseEdit();
@@ -951,17 +977,76 @@ function Dashboard() {
                                                 {grid.columns.map(col => {
                                                     const cell = (row.cells || []).find(c => Number(c.columnId) === Number(col.id)) || { value: "" };
                                                     let cellControl = null;
+                                                    const isDisplayOnly = !!col.sourceGridId; const parsed = (() => {
+                                                        try {
+                                                            return JSON.parse(cell.value);
+                                                        } catch {
+                                                            return null;
+                                                        }
+                                                    })();
+
                                                     if (col.type === "External") {
                                                         cellControl = (
                                                             <ExternalCell
                                                                 cell={cell}
+                                                                column={col}
                                                                 currentGridId={grid.id}
                                                                 currentRowId={row.id}
-                                                                onUpdate={(newValue) => handleCellChangeImmediate(grid.id, row.id, col.id, newValue)}
+                                                                rowsCache={
+                                                                    dataGrids.find(g => g.id === col.linkedGridId)?.rows || []
+                                                                }
+                                                                onUpdate={(newValue) => {
+                                                                    try {
+                                                                        const parsed = typeof newValue === "string" ? JSON.parse(newValue) : newValue;
+                                                                        const display = Array.isArray(parsed)
+                                                                            ? parsed.map(p => p.display || p.rowId).join(', ')
+                                                                            : parsed.display || parsed.rowId || "";
+
+                                                                        handleCellChangeImmediate(grid.id, row.id, col.id, newValue);
+
+                                                                        if (col.sourceGridId && col.sourceColumnId) {
+                                                                            handleCellChangeImmediate(grid.id, row.id, col.sourceColumnId, display);
+                                                                        }
+                                                                    } catch (e) {
+                                                                        console.error("Ошибка обработки onUpdate:", e);
+                                                                    }
+                                                                }}
+                                                                onRefresh={gridId => fetchSingleGrid(gridId)}
                                                                 canEdit={getGridPermissions(grid).canEdit}
                                                             />
                                                         );
-                                                    } else if (col.type === "SingleSelect") {
+                                                    } else if (col.type === "ReverseExternal") {
+                                                        const targetGrid = dataGrids.find(g => g.id === col.sourceGridId);
+                                                        const displayCol = targetGrid.columns.find(c => c.type === "String");
+                                                        const editableCol = {
+                                                            ...col,
+                                                            type: "External",
+                                                            linkedGridId: col.sourceGridId,
+                                                            linkedColumnId: displayCol.id,   
+                                                        };
+
+                                                        cellControl = (
+                                                            <ExternalCell
+                                                                cell={cell}
+                                                                column={editableCol}
+                                                                currentGridId={grid.id}
+                                                                currentRowId={row.id}
+                                                                rowsCache={
+                                                                    dataGrids.find(g => g.id === col.linkedGridId)?.rows || []
+                                                                }
+                                                                onUpdate={(newValue) => {
+                                                                    try {
+                                                                        handleCellChangeImmediate(grid.id, row.id, col.id, newValue);
+                                                                    } catch (e) {
+                                                                        console.error("Ошибка в onUpdate ReverseExternal:", e);
+                                                                    }
+                                                                }}
+                                                                onRefresh={gridId => fetchSingleGrid(gridId)}
+                                                                canEdit={getGridPermissions(grid).canEdit}
+                                                            />
+                                                        );
+                                                    }
+                                                     else if (col.type === "SingleSelect") {
                                                         const opts = (col.options || "").split(',').map(o => o.trim()).filter(o => o);
                                                         cellControl = (
                                                             <FormControl component="fieldset">
@@ -1011,18 +1096,14 @@ function Dashboard() {
                                                             editingCell &&
                                                             editingCell.gridId === grid.id &&
                                                             editingCell.rowId === row.id &&
-                                                            editingCell.columnId === col.id
+                                                            editingCell.columnId === col.id &&
+                                                            !isDisplayOnly
                                                         ) {
                                                             if (col.type === "Numeric") {
                                                                 let inputProps = {};
                                                                 if (col.minValue != null) inputProps.min = col.minValue;
                                                                 if (col.maxValue != null) inputProps.max = col.maxValue;
-                                                                let step = 1;
-                                                                if (col.minValue != null && col.maxValue != null) {
-                                                                    const range = col.maxValue - col.minValue;
-                                                                    step = range >= 100 ? 10 : 1;
-                                                                }
-                                                                inputProps.step = step;
+                                                                inputProps.step = (col.maxValue - col.minValue >= 100) ? 10 : 1;
 
                                                                 cellControl = (
                                                                     <TextField
@@ -1031,15 +1112,10 @@ function Dashboard() {
                                                                         onChange={(e) => setEditingValue(e.target.value)}
                                                                         onBlur={() => {
                                                                             let num = parseFloat(editingValue);
-                                                                            if (isNaN(num)) {
-                                                                                num = "";
-                                                                            } else {
-                                                                                if (col.minValue != null && num < col.minValue) {
-                                                                                    num = col.minValue;
-                                                                                }
-                                                                                if (col.maxValue != null && num > col.maxValue) {
-                                                                                    num = col.maxValue;
-                                                                                }
+                                                                            if (isNaN(num)) num = "";
+                                                                            else {
+                                                                                if (col.minValue != null && num < col.minValue) num = col.minValue;
+                                                                                if (col.maxValue != null && num > col.maxValue) num = col.maxValue;
                                                                             }
                                                                             const newValue = num.toString();
                                                                             setEditingValue(newValue);
@@ -1049,19 +1125,6 @@ function Dashboard() {
                                                                         variant="standard"
                                                                         fullWidth
                                                                         inputProps={inputProps}
-                                                                    />
-                                                                );
-                                                            } else if (col.type === "String") {
-                                                                cellControl = (
-                                                                    <TextField
-                                                                        type="text"
-                                                                        value={editingValue}
-                                                                        onChange={(e) => setEditingValue(e.target.value)}
-                                                                        onBlur={() => handleCellBlur(grid.id, row.id, col.id, editingValue)}
-                                                                        autoFocus
-                                                                        variant="standard"
-                                                                        fullWidth
-                                                                        inputProps={col.maxLength ? { maxLength: col.maxLength } : {}}
                                                                     />
                                                                 );
                                                             } else {
@@ -1074,19 +1137,63 @@ function Dashboard() {
                                                                         autoFocus
                                                                         variant="standard"
                                                                         fullWidth
+                                                                        inputProps={col.maxLength ? { maxLength: col.maxLength } : {}}
                                                                     />
                                                                 );
                                                             }
                                                         } else {
-                                                            cellControl = (
-                                                                <Typography
-                                                                    variant="body2"
-                                                                    onDoubleClick={() => getGridPermissions(grid).canEdit && handleCellClick(grid.id, row.id, col.id, cell.value)}
-                                                                    style={{ cursor: getGridPermissions(grid).canEdit ? "pointer" : "default", whiteSpace: "pre-wrap", minHeight: "24px" }}
-                                                                >
-                                                                    {cell.value || "\u00A0"}
-                                                                </Typography>
-                                                            );
+                                                            if (col.sourceGridId && col.sourceColumnId) {
+                                                                const externalLinkCell = (row.cells || []).find(c => {
+                                                                    const sourceCol = grid.columns.find(colCandidate => colCandidate.id === c.columnId);
+                                                                    return sourceCol?.type === "External" &&
+                                                                        sourceCol.linkedGridId === col.sourceGridId &&
+                                                                        sourceCol.linkedColumnId === col.sourceColumnId;
+                                                                });
+
+                                                                let display = "";
+                                                                if (externalLinkCell?.value) {
+                                                                    try {
+                                                                        const parsed = JSON.parse(externalLinkCell.value);
+                                                                        const links = Array.isArray(parsed) ? parsed : [parsed];
+
+                                                                        const linkedGrid = dataGrids.find(g => g.id === col.sourceGridId);
+                                                                        const values = links.map(link => {
+                                                                            const linkedRow = linkedGrid?.rows.find(r => r.id === link?.rowId);
+                                                                            const linkedCell = linkedRow?.cells.find(c => c.columnId === col.sourceColumnId);
+                                                                            return linkedCell?.value || "";
+                                                                        });
+
+                                                                        display = values.join(", ");
+                                                                    } catch {
+                                                                        display = "(ошибка)";
+                                                                    }
+                                                                }
+
+
+                                                                cellControl = (
+                                                                    <Typography variant="body2" sx={{ minHeight: "24px" }}>
+                                                                        {display || "\u00A0"}
+                                                                    </Typography>
+                                                                );
+                                                            } else {
+                                                                cellControl = (
+                                                                    <Typography
+                                                                        variant="body2"
+                                                                        onDoubleClick={() => {
+                                                                            if (!isDisplayOnly && getGridPermissions(grid).canEdit) {
+                                                                                handleCellClick(grid.id, row.id, col.id, cell.value);
+                                                                            }
+                                                                        }}
+                                                                        style={{
+                                                                            cursor: !isDisplayOnly && getGridPermissions(grid).canEdit ? "pointer" : "default",
+                                                                            whiteSpace: "pre-wrap",
+                                                                            minHeight: "24px"
+                                                                        }}
+                                                                    >
+                                                                        {parsed?.display || parsed?.rowId || cell.value || "\u00A0"}
+                                                                    </Typography>
+                                                                );
+                                                            }
                                                         }
                                                     }
                                                     return (
@@ -1335,6 +1442,51 @@ function Dashboard() {
                                     />
                                 </Box>
                             )}
+                            {col.type === 'External' && (
+                                <>
+                                    <TextField
+                                        select
+                                        label="Таблица для связи"
+                                        value={col.linkedGridId || ''}
+                                        onChange={(e) => handleCreateColumnChange(index, 'linkedGridId', parseInt(e.target.value))}
+                                        variant="outlined"
+                                        size="small"
+                                        sx={{
+                                            minWidth: 200,
+                                            '& .MuiOutlinedInput-root': {
+                                                backgroundColor: 'rgb(48, 48, 48)',
+                                                color: 'white',
+                                            },
+                                        }}
+                                    >
+                                        {dataGrids.map(grid => (
+                                            <MenuItem key={grid.id} value={grid.id}>{grid.name}</MenuItem>
+                                        ))}
+                                    </TextField>
+
+                                    {col.linkedGridId && (
+                                        <TextField
+                                            select
+                                            label="Поле отображения"
+                                            value={col.linkedColumnId || ''}
+                                            onChange={(e) => handleCreateColumnChange(index, 'linkedColumnId', parseInt(e.target.value))}
+                                            variant="outlined"
+                                            size="small"
+                                            sx={{
+                                                minWidth: 200,
+                                                '& .MuiOutlinedInput-root': {
+                                                    backgroundColor: 'rgb(48, 48, 48)',
+                                                    color: 'white',
+                                                },
+                                            }}
+                                        >
+                                            {(dataGrids.find(g => g.id === col.linkedGridId)?.columns || []).map(colOption => (
+                                                <MenuItem key={colOption.id} value={colOption.id}>{colOption.name}</MenuItem>
+                                            ))}
+                                        </TextField>
+                                    )}
+                                </>
+                            )}
                             <IconButton onClick={() => handleRemoveCreateColumn(index)}>
                                 <DeleteIcon sx={{ color: 'white' }} />
                             </IconButton>
@@ -1497,6 +1649,50 @@ function Dashboard() {
                                         size="small"
                                     />
                                 </Box>
+                            )}{col.type === 'External' && (
+                                <>
+                                    <TextField
+                                        select
+                                        label="Таблица для связи"
+                                        value={col.linkedGridId || ''}
+                                        onChange={(e) => handleEditColumnChange(index, 'linkedGridId', parseInt(e.target.value))}
+                                        variant="outlined"
+                                        size="small"
+                                        sx={{
+                                            minWidth: 200,
+                                            '& .MuiOutlinedInput-root': {
+                                                backgroundColor: 'rgb(48, 48, 48)',
+                                                color: 'white',
+                                            },
+                                        }}
+                                    >
+                                        {dataGrids.map(grid => (
+                                            <MenuItem key={grid.id} value={grid.id}>{grid.name}</MenuItem>
+                                        ))}
+                                    </TextField>
+
+                                    {col.linkedGridId && (
+                                        <TextField
+                                            select
+                                            label="Поле отображения"
+                                            value={col.linkedColumnId || ''}
+                                            onChange={(e) => handleEditColumnChange(index, 'linkedColumnId', parseInt(e.target.value))}
+                                            variant="outlined"
+                                            size="small"
+                                            sx={{
+                                                minWidth: 200,
+                                                '& .MuiOutlinedInput-root': {
+                                                    backgroundColor: 'rgb(48, 48, 48)',
+                                                    color: 'white',
+                                                },
+                                            }}
+                                        >
+                                            {(dataGrids.find(g => g.id === col.linkedGridId)?.columns || []).map(colOption => (
+                                                <MenuItem key={colOption.id} value={colOption.id}>{colOption.name}</MenuItem>
+                                            ))}
+                                        </TextField>
+                                    )}
+                                </>
                             )}
                             <IconButton onClick={() => handleRemoveEditColumn(index)}>
                                 <DeleteIcon sx={{ color: 'white' }} />
@@ -1525,7 +1721,7 @@ function Dashboard() {
                     onPermissionsUpdated={fetchDataGrids}
                 />
             )}
-            <ToastContainer position="top-center" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="dark" />
+            <ToastContainer position="top-center" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="dark" limit={3} />
         </>
     );
 }

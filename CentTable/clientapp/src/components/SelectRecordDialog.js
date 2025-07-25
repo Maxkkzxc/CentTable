@@ -1,75 +1,107 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, List, ListItem, ListItemText, Button, DialogActions } from '@mui/material';
+import {
+    Dialog, DialogTitle, DialogContent, DialogActions,
+    List, ListItem, ListItemText, Button, TextField, CircularProgress, Box
+} from '@mui/material';
 import api from '../services/axiosInstance';
 
-function SelectRecordDialog({ open, onClose, onSelect, currentGridId, currentRowId, columnId }) {
-    const [records, setRecords] = useState([]);
+function SelectRecordDialog({ open, onClose, onSelect, linkedGridId, linkedColumnId }) {
+    const [rows, setRows] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState('');
 
     useEffect(() => {
-        if (open) {
-            api.get('datagrid/all-records')
-                .then(res => setRecords(res.data))
-                .catch(err => console.error("Ошибка получения записей", err));
+        if (open && linkedGridId) {
+            loadRows();
         }
-    }, [open]);
+    }, [open, linkedGridId]);
 
-    const filteredRecords = records.filter(record => {
-        return !(Number(record.gridId) === Number(currentGridId) && Number(record.rowId) === Number(currentRowId));
-    });
-
-    const items = [];
-    filteredRecords.forEach(record => {
-        if (record.columns && record.cellValues) {
-            record.columns.forEach(col => {
-                const rawValue = record.cellValues[col.id];
-                if (rawValue && rawValue.trim() !== "") {
-                    let displayValue = rawValue;
-                    if (rawValue.trim().startsWith("{")) {
-                        try {
-                            const parsed = JSON.parse(rawValue);
-                            if (parsed && parsed.gridId && parsed.rowId && parsed.targetColumnId) {
-                                displayValue = "Внешняя ссылка";
-                            }
-                        } catch (e) {
-                        }
-                    }
-                    items.push({
-                        gridId: record.gridId,
-                        gridName: record.gridName,
-                        rowId: record.rowId,
-                        targetColumnId: col.id,
-                        targetColumnName: col.name,
-                        value: displayValue
-                    });
-                }
-            });
+    const loadRows = async () => {
+        setLoading(true);
+        try {
+            const res = await api.get(`datagrid/${linkedGridId}`);
+            const rawRows = res.data.rows || [];
+            setRows(rawRows);
+        } catch (err) {
+            console.error('Ошибка загрузки записей:', err);
+        } finally {
+            setLoading(false);
         }
-    });
-
-    const handleSelect = (item) => {
-        onSelect(item);
-        onClose();
     };
+
+    const getDisplayValue = (cell, rowId) => {
+        if (!cell?.value) return '(пусто)';
+        try {
+            const parsed = JSON.parse(cell.value);
+            if (Array.isArray(parsed)) {
+                return parsed.map(item => item.display || `(ID: ${item.rowId})`).join(', ');
+            } else if (typeof parsed === 'object') {
+                if (parsed.display && parsed.display !== '(пусто)') return parsed.display;
+                if (parsed.rowId) {
+                    const linkedRow = rows.find(r => r.id === parsed.rowId);
+                    const linkedCell = linkedRow?.cells.find(c => c.columnId === linkedColumnId);
+                    return linkedCell?.value || `(ID: ${parsed.rowId})`;
+                }
+            }
+            return cell.value;
+        } catch {
+            return cell.value;
+        }
+    };
+
+    const filteredRows = rows.filter(row => {
+        const cell = row.cells.find(c => c.columnId === linkedColumnId);
+        const displayValue = getDisplayValue(cell, row.id);
+        return !search || displayValue.toLowerCase().includes(search.toLowerCase());
+    });
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth>
-            <DialogTitle>Выберите ячейку</DialogTitle>
+            <DialogTitle>Выбор записи</DialogTitle>
             <DialogContent>
-                <List>
-                    {items.map(item => (
-                        <ListItem button key={`${item.gridId}-${item.rowId}-${item.targetColumnId}`} onClick={() => handleSelect(item)}>
-                            <ListItemText
-                                primary={`${item.targetColumnName}: ${item.value}`}
-                                secondary={`Таблица: ${item.gridName}`}
-                            />
-                        </ListItem>
-                    ))}
-                    {items.length === 0 && (
-                        <ListItem>
-                            <ListItemText primary="Нет записей с данными" />
-                        </ListItem>
-                    )}
-                </List>
+                <TextField
+                    fullWidth
+                    variant="outlined"
+                    placeholder="Поиск..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    sx={{ mb: 2 }}
+                />
+
+                {loading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                        <CircularProgress />
+                    </Box>
+                ) : (
+                    <List dense>
+                        {filteredRows.length > 0 ? filteredRows.map(row => {
+                            const cell = row.cells.find(c => c.columnId === linkedColumnId);
+                            const displayValue = getDisplayValue(cell, row.id);
+
+                            return (
+                                <ListItem
+                                    button
+                                    key={row.id}
+                                    onClick={() => {
+                                        onSelect({
+                                            rowId: row.id,
+                                            display: displayValue
+                                        });
+                                    }}
+                                >
+                                    <ListItemText
+                                        primary={displayValue}
+                                        secondary={`ID: ${row.id}`}
+                                    />
+                                </ListItem>
+                            );
+                        }) : (
+                            <ListItem>
+                                <ListItemText primary="Нет подходящих записей" />
+                            </ListItem>
+                        )}
+                    </List>
+                )}
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Отмена</Button>

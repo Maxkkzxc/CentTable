@@ -1,139 +1,194 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Button, Typography } from '@mui/material';
-import SelectRecordDialog from './SelectRecordDialog';
+﻿import React, { useEffect, useState, useMemo } from 'react';
+import { Box, Chip, IconButton } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import api from '../services/axiosInstance';
+import SelectRecordDialog from './SelectRecordDialog';
 import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 
-function ExternalCell({ cell, onUpdate, currentGridId, currentRowId, canEdit }) {
+function ExternalCell({
+    cell,
+    column,
+    currentGridId,
+    currentRowId,
+    rowsCache = [],
+    onUpdate,
+    onRefresh,
+    canEdit
+}) {
     const [openDialog, setOpenDialog] = useState(false);
-    const [externalDisplay, setExternalDisplay] = useState(null);
-    const [initialLoading, setInitialLoading] = useState(true);
-    const [errorMsg, setErrorMsg] = useState(null);
+    const [items, setItems] = useState([]);
 
-    const parsedValue = useMemo(() => {
-        if (!cell.value) return null;
-        try {
-            return JSON.parse(cell.value);
-        } catch (e) {
-            console.error("Ошибка парсинга внешней ссылки", e);
-            return null;
+    const parsed = useMemo(() => {
+        if (!cell?.value) return [];
+        if (typeof cell.value === 'object') {
+            return Array.isArray(cell.value) ? cell.value : [cell.value];
         }
-    }, [cell.value]);
+        try {
+            const result = JSON.parse(cell.value);
+            return Array.isArray(result) ? result : [result];
+        } catch {
+            return [];
+        }
+    }, [cell?.value]);
 
-    const lastValueRef = useRef(null);
+    const linkedGridId = column?.linkedGridId;
+    const linkedColumnId = column?.linkedColumnId;
 
     useEffect(() => {
-        if (!parsedValue || !parsedValue.gridId || !parsedValue.rowId || !parsedValue.targetColumnId)
+        if (!linkedGridId || !linkedColumnId) {
+            setItems([]);
             return;
-        let isMounted = true;
+        }
 
-        const fetchData = async () => {
-            try {
-                const res = await api.get(`datagrid/${parsedValue.gridId}`);
-                const grid = res.data;
-                const row = grid.rows.find(r => Number(r.id) === Number(parsedValue.rowId));
-                if (!row) {
-                    if (isMounted) {
-                        setErrorMsg('Строка не найдена');
-                        setExternalDisplay('');
+        const rows = rowsCache;
+        if (!rows || rows.length === 0) {
+            setItems(parsed.map(l => ({
+                rowId: l.rowId,
+                display: l.display || `(ID: ${l.rowId})`
+            })));
+            return;
+        }
+
+        if (column.type === 'ReverseExternal') {
+            const matched = [];
+            for (const r of rows) {
+                const c = r.cells.find(c => c.columnId === linkedColumnId);
+                if (!c?.value) continue;
+                try {
+                    const arr = Array.isArray(JSON.parse(c.value))
+                        ? JSON.parse(c.value)
+                        : [JSON.parse(c.value)];
+                    const linkObj = arr.find(l => l.rowId === currentRowId);
+                    if (linkObj) {
+                        matched.push({
+                            rowId: r.id,
+                            display: linkObj.display || `(ID: ${r.id})`
+                        });
                     }
-                    return;
+                } catch {
                 }
-                const targetCell = row.cells.find(
-                    c => Number(c.columnId) === Number(parsedValue.targetColumnId)
-                );
-                if (targetCell) {
-                    if (isMounted && targetCell.value !== lastValueRef.current) {
-                        lastValueRef.current = targetCell.value;
-                        setExternalDisplay(targetCell.value);
-                    }
-                } else {
-                    if (isMounted) setExternalDisplay('');
-                }
-            } catch (err) {
-                console.error("ExternalCell: Ошибка получения данных", err);
-                if (isMounted) setErrorMsg('Ошибка загрузки');
-            } finally {
-                if (isMounted && initialLoading) setInitialLoading(false);
             }
-        };
-
-        fetchData();
-        let intervalId;
-        if (process.env.NODE_ENV !== 'test') {
-            intervalId = setInterval(fetchData, 2000);
+            setItems(matched);
+        } else {
+            const enriched = parsed.map(link => {
+                const targetRow = rows.find(r => r.id === link.rowId);
+                const targetCell = targetRow
+                    ?.cells.find(c => c.columnId === linkedColumnId);
+                return {
+                    rowId: link.rowId,
+                    display:
+                        targetCell?.value ||
+                        link.display ||
+                        `(ID: ${link.rowId})`
+                };
+            });
+            setItems(enriched);
         }
-        return () => {
-            isMounted = false;
-            if (intervalId) clearInterval(intervalId);
-        };
-    }, [parsedValue, initialLoading]);
+    }, [
+        rowsCache,
+        parsed,
+        column.type,
+        currentRowId,
+        linkedGridId,
+        linkedColumnId
+    ]);
 
-    const handleSelectRecord = (item) => {
-        if (
-            Number(item.gridId) === Number(currentGridId) &&
-            Number(item.rowId) === Number(currentRowId)
-        ) {
-            alert("Нельзя ссылаться на саму себя!");
+    const handleSelect = async (record) => {
+        if (linkedGridId === currentGridId && record.rowId === currentRowId) {
+            toast.warning("Нельзя ссылаться на саму себя");
             return;
         }
-        const newValue = JSON.stringify({
-            gridId: item.gridId,
-            rowId: item.rowId,
-            targetColumnId: item.targetColumnId
-        });
-        onUpdate(newValue);
-        setOpenDialog(false);
+        if (items.some(i => i.rowId === record.rowId)) {
+            toast.info("Запись уже добавлена");
+            return;
+        }
+
+        const newItems = [
+            ...items,
+            { rowId: record.rowId, display: record.display }
+        ];
+        const newValue = JSON.stringify(newItems);
+
+        try {
+            await api.post('/datagrid/update-cell', {
+                gridId: currentGridId,
+                rowId: currentRowId,
+                columnId: column.id,
+                value: newValue
+            });
+            setItems(newItems);
+            onUpdate?.(newValue);
+            onRefresh?.(linkedGridId);
+            toast.success("Связь добавлена");
+        } catch (err) {
+            console.error("Ошибка при сохранении:", err);
+            toast.error("Не удалось сохранить связь");
+        } finally {
+            setOpenDialog(false);
+        }
     };
 
-    const handleDoubleClick = () => {
-        if (!canEdit) {
-            toast.info("У вас нет прав для изменения внешней ссылки");
-            return;
+    const handleDelete = async (targetRowId) => {
+        const newItems = items.filter(i => i.rowId !== targetRowId);
+        const newValue = JSON.stringify(newItems);
+
+        try {
+            await api.post('/datagrid/update-cell', {
+                gridId: currentGridId,
+                rowId: currentRowId,
+                columnId: column.id,
+                value: newValue
+            });
+            setItems(newItems);
+            onUpdate?.(newValue);
+            onRefresh?.(linkedGridId);
+            toast.success("Связь удалена");
+        } catch (err) {
+            console.error("Ошибка при удалении связи:", err);
+            toast.error("Ошибка при удалении");
         }
-        setOpenDialog(true);
     };
 
     return (
-        <div>
-            {parsedValue ? (
-                initialLoading ? (
-                    <Typography variant="body2">Загрузка...</Typography>
-                ) : errorMsg ? (
-                    <Typography
-                        variant="body2"
-                        color="error"
-                        data-testid="external-text"
-                        onDoubleClick={handleDoubleClick}
-                        style={{ cursor: canEdit ? 'pointer' : 'default' }}
-                    >
-                        {errorMsg}
-                    </Typography>
-                ) : (
-                    <Typography
-                        variant="body2"
-                        data-testid="external-text"
-                        onDoubleClick={handleDoubleClick}
-                        style={{ cursor: canEdit ? 'pointer' : 'default' }}
-                    >
-                        {externalDisplay || "Нет значения"}
-                    </Typography>
-                )
-            ) : (
-                <Button variant="outlined" size="small" onClick={handleDoubleClick} disabled={!canEdit}>
-                    Выбрать запись
-                </Button>
+        <Box
+            sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: '4px',
+                minHeight: '24px'
+            }}
+        >
+            {items.map(item => (
+                <Chip
+                    key={item.rowId}
+                    label={item.display}
+                    onDelete={
+                        canEdit ? () => handleDelete(item.rowId) : undefined
+                    }
+                    size="small"
+                    sx={{ maxWidth: '160px' }}
+                />
+            ))}
+
+            {canEdit && (
+                <IconButton
+                    size="small"
+                    onClick={() => setOpenDialog(true)}
+                    sx={{ padding: '2px', color: 'primary.main' }}
+                >
+                    <AddIcon fontSize="small" />
+                </IconButton>
             )}
+
             <SelectRecordDialog
                 open={openDialog}
                 onClose={() => setOpenDialog(false)}
-                onSelect={handleSelectRecord}
-                currentGridId={currentGridId}
-                currentRowId={currentRowId}
-                columnId={parsedValue ? parsedValue.targetColumnId : undefined}
+                onSelect={handleSelect}
+                linkedGridId={linkedGridId}
+                linkedColumnId={linkedColumnId}
             />
-        </div>
+        </Box>
     );
 }
 

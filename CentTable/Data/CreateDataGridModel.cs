@@ -19,5 +19,7 @@ namespace CentTable.Data
         public int? MaxLength { get; set; }
         public double? MinValue { get; set; }
         public double? MaxValue { get; set; }
+        public int? LinkedGridId { get; set; }
+        public int? LinkedColumnId { get; set; }
     }
 }
