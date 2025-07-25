@@ -115,7 +115,7 @@ namespace CentTable.Controllers
             };
 
             _context.DataGrids.Add(grid);
-            await _context.SaveChangesAsync(); // нужен, чтобы grid.Id появился
+            await _context.SaveChangesAsync(); 
 
             foreach (var c in model.Columns)
             {
@@ -134,7 +134,7 @@ namespace CentTable.Controllers
                 };
 
                 _context.Columns.Add(newCol);
-                await _context.SaveChangesAsync(); // нужен для newCol.Id
+                await _context.SaveChangesAsync(); 
 
                 await AddLinkedColumnsAsync(newCol, grid);
             }

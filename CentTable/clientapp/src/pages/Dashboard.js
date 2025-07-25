@@ -59,7 +59,7 @@ function parseJwt(token) {
         return null;
     }
 }
-
+ 
 const columnTypeOptions = [
     { value: "String", label: "Строка" },
     { value: "Numeric", label: "Числовое" },
@@ -431,22 +431,24 @@ function Dashboard() {
         const payload = {
             name: newGridName,
             isPublic: newGridIsPublic,
-            columns: formatColumnConstraints(createColumns) 
+            columns: formatColumnConstraints(createColumns),
         };
 
         try {
             const response = await api.post('datagrid/create', payload);
             const newGrid = response.data;
+
             await fetchDataGrids();
 
-            setDataGrids(prev => [...prev, newGrid]);
             setSelectedGridId(newGrid.id);
+
             handleCloseCreate();
         } catch (err) {
             console.error("Ошибка при создании таблицы:", err.response?.data || err.message);
             toast.error("Ошибка при создании таблицы");
         }
     };
+
 
 
     const updateGrid = async (updatedGrid) => {
